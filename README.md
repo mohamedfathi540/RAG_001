@@ -18,8 +18,22 @@ uv run python --version
 ```bash
 cp req.txt req.txt
 ```
-4) install fastapi and uvicorn
+4) install the requirements 
 ```bash
-uv pip install "fastapi[standard]"
-uv pip install "uvicorn[standard]"
+uv pip install ./requirements.txt
+```
+5) Setup the environment variables
+```bash
+cp .env.example .env
+```
+6) POSTMAN Collection
+
+<center>
+
+### Run the API server 
+
+</center>
+
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 5000
 ```

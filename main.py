@@ -1,6 +1,12 @@
-def main():
-    print("Hello from projec-1!")
+from fastapi import FastAPI
+app =FastAPI()
+
+@app.get("/welcome")
+def Welcome():
+    return {
+        "message" : "Hello world"
+
+    }
 
 
-if __name__ == "__main__":
-    main()
+
