@@ -4,9 +4,9 @@
 
 </center>
 
-1) we are using python = 3.11.
+1) we are using python = 3.11.14
 ```python
-pip install python3 = 3.11
+pip install python3 = 3.11.14
 ```
 2) we crate a vertual inveronment 
 ```bash
