@@ -10,11 +10,9 @@ class projectcontroller (basecontroller) :
 
     def get_project_path (self,project_id : str) :
             
-            project_dir = os.path.join(
-                 self.files_dir,
-                 project_id)
+            project_path = os.path.join(self.files_dir, project_id)
             
-            if not os.path.exists(project_dir)  :
-                os.makedirs(project_dir)
+            if not os.path.exists(project_path)  :
+                os.makedirs(project_path)
 
-            return project_dir
+            return project_path

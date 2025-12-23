@@ -1,13 +1,13 @@
-from fastapi import FastAPI,APIRouter,Depends,UploadFile,status
+from fastapi import FastAPI,APIRouter,Depends,UploadFile,status,Request
 from fastapi.responses import JSONResponse
 import os
 from Helpers.Config import get_settings,settings
-from Controllers import datacontroller ,projectcontroller
+from Controllers import datacontroller ,projectcontroller ,processcontroller
 import aiofiles
 from Models import ResponseSignal
 import logging
 from .Schemes.Date_Schemes import ProcessRequest
-
+from Models.Project_Model import projectModel
 
 
 logger = logging.getLogger("uvicorn error")
@@ -19,8 +19,13 @@ data_router = APIRouter(
 )
 
 @data_router.post("/upload/{project_id}")
-async def upload_data (project_id : str ,file : UploadFile ,
+async def upload_data (request :Request,project_id : str ,file : UploadFile ,
                        app_settings : settings = Depends(get_settings))  :
+
+
+    project_model = projectModel    ( db_client=request.app.db_client )
+
+    project = await project_model.get_project_or_create(project_id=project_id)
 
     # validate the file properties
 
@@ -57,12 +62,34 @@ async def upload_data (project_id : str ,file : UploadFile ,
     return JSONResponse(
            content={
                 "signal": ResponseSignal.FILE_UPLOADED.value,
-                "file ID" : file_id                }
+                "file_id" : file_id,
+                "project_id" : str (project._id )              }
            )
 
 @data_router.post("/process/{project_id}")
 async def process_endpoint (project_id :str ,process_request : ProcessRequest) :
 
     file_id = process_request.file_id
+    chunk_size = process_request.chunk_size
+    overlap_size = process_request.overlap_size
 
-    return file_id
+
+    Process_Controller = processcontroller(project_id=project_id)   
+
+    file_content = Process_Controller.get_file_content(file_id=file_id)
+    file_chunks = Process_Controller.process_file_content(
+        file_content = file_content,
+        file_id = file_id,
+        chunk_size = chunk_size,
+        overlap_size = overlap_size
+    )
+
+    if file_chunks is None or len(file_chunks) == 0:
+        return JSONResponse(
+           content={
+                "signal": ResponseSignal.PROCESSING_FAILED.value          }
+           )
+
+    return file_chunks
+
+  
