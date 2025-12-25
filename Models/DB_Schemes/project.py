@@ -4,11 +4,11 @@ from bson.objectid import ObjectId
 
 
 class project (BaseModel) :
-    _id :Optional [ObjectId]
+    id :Optional [ObjectId] = Field(alias='_id')
     project_id :str = Field(...,min_length=1)
 
     @validator("project_id")
-    def vaalidate_project_id (cls, value):
+    def validate_project_id (cls, value):
         if not value .isalnum() :
             raise ValueError("project id must be alphanumeric")
         
@@ -16,5 +16,6 @@ class project (BaseModel) :
         return value
     
 
-    class config() :
-        arbitrary_types_allowd = True
+    class Config() :
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
