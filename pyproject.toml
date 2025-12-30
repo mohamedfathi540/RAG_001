@@ -22,7 +22,7 @@ dependencies = [
     "openai==1.75.0",
     "pgvector==0.4.0",
     "prometheus-client==0.21.1",
-    "psycopg2==2.9.10",
+    "psycopg2-binary==2.9.10",
     "pydantic-mongo==2.3.0",
     "pydantic-settings==2.2.1",
     "pymupdf==1.24.3",
