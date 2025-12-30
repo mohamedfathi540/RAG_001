@@ -21,6 +21,7 @@ class Project (BaseModel) :
         arbitrary_types_allowed = True
 
     @classmethod
+<<<<<<< HEAD
     def get_indexes(cls) :
         return[
             {
@@ -29,3 +30,9 @@ class Project (BaseModel) :
                 "uniqe" : True
             }
         ]
+=======
+    def get_indexes (cls ):
+        pass
+
+
+>>>>>>> 7187f73183e524281dc5ec5a762a962a71e75747
