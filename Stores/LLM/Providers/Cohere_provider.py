@@ -45,33 +45,6 @@ class CohereProvider(LLMInterface):
         max_output_tokens = max_output_tokens if max_output_tokens else self.defualt_genrated_max_output_tokens
         temperature = temperature if temperature else self.defualt_genration_temperature
 
-        # Create the current message object
-        current_message = self.construct_prompt(prompt=prompt, role=CohereEnum.USER.value)
-        
-        # Cohere API expects 'message' for the current turn and 'chat_history' for previous turns.
-        # chat_history passed here is likely the full list including previous turns.
-        # However, the interface seems to imply we append to it. 
-        # In OpenAI provider: chat_history.append(current) -> call(messages=chat_history)
-        # For Cohere: we need to separate the *current* message from the *history*.
-        
-        # If chat_history is passed in, we append the new user message to it conceptually, 
-        # but for the API call we split it.
-        
-        # Important: The 'chat_history' argument in this method signature comes from the caller. 
-        # If the caller expects us to append to it and return it modified (mutable list), 
-        # or if we strictly use it for the API. 
-        # OpenAI provider modifies it: chat_history.append(...)
-        
-        # Let's match behavior: append to the list so formatting is consistent if reused.
-        chat_history.append(current_message)
-
-        # For Cohere chat parameter:
-        # message: str (the text of the current message)
-        # chat_history: list of dicts (previous messages)
-        
-        history_for_api = chat_history[:-1] # All except the last one
-        current_prompt_text = current_message["message"]
-        
         try:
             response = self.client.chat(
                 model=self.genration_model_id,
@@ -101,20 +74,25 @@ class CohereProvider(LLMInterface):
             return None
 
         try:
-            input_type = CohereEnum.DOCUMENT.value
+            input_type = CohereEnum.DOCUMENT
+            if document_type == DocumentTypeEnum.QUERY:
+                input_type = CohereEnum.QUERY
+
+
             # Cohere embed takes a list of texts
             response = self.client.embed(
-                texts=[text],
+                texts=[self.process_text(text)],
                 model=self.embedding_model_id,
-                input_type=document_type if document_type else "search_document" 
+                input_type=input_type
+                embedding_types = ['float']
                 # input_type is often required for v3 models, defaulting safe
             )
 
-            if not response or not response.embeddings or len(response.embeddings) == 0:
+            if not response or not response.embeddings or not response.embeddings.float:
                 self.logger.error("Error while embedding text using Cohere")
                 return None
 
-            return response.embeddings[0]
+            return response.embeddings.float[0]
             
         except Exception as e:
             self.logger.error(f"Exception during Cohere embedding: {e}")
