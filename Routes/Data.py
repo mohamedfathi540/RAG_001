@@ -142,8 +142,7 @@ async def process_endpoint (request :Request ,project_id :str ,process_request :
 
         if file_content is None :
             logger.error(f"Error while processing file : {file_id}")
-
-        continue
+            continue
 
         file_chunks = Process_Controller.process_file_content(
             file_content = file_content,
