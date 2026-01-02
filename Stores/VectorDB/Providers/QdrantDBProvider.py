@@ -36,7 +36,7 @@ class QdrantDBProvider(VectorDBInterface):
         return self.client.get_collections()
 
 
-    def get_cpllection_info(self, collection_name: str) -> dict:
+    def get_collection_info(self, collection_name: str) -> dict:
         return self.client.get_collection(collection_name = collection_name)
 
 

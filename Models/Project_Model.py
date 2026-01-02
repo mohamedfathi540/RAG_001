@@ -1,5 +1,5 @@
 from .Base_DataModel import BaseDataModel
-from .DB_Schemes.project import Project
+from .DB_Schemes.Project import Project
 from .enums.DataBaseEnum import databaseEnum
 
 
@@ -55,7 +55,7 @@ class projectModel (BaseDataModel) :
 
             #count the total number of Documents
 
-            total_documents = await self.collection.count_doccuments({})
+            total_documents = await self.collection.count_documents({})
 
             #calculate the total pages 
 
