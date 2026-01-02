@@ -30,7 +30,13 @@ class settings (BaseSettings):
     INPUT_DEFUALT_MAX_CHARACTERS : int = None
     GENRATED_DEFUALT_MAX_OUTPUT_TOKENS : int = None
     GENRATION_DEFUALT_TEMPERATURE : float = None 
+
+
+    VECTOR_DB_BACKEND : str 
+    QDRANT_DB_PATH : str
+    QDRANT_DISTANCE_METHOD : str = None
     
+
     model_config = SettingsConfigDict(env_file=".env")
 
 def get_settings () :
