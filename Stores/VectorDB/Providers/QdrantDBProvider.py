@@ -145,7 +145,7 @@ class QdrantDBProvider(VectorDBInterface):
         if not results or len(results) == 0 :
             return []
 
-    return [RetrivedDocument(**{
+        return [RetrivedDocument(**{
             "score" : result.score ,
             "text" : result.payload["text"] 
             }) 

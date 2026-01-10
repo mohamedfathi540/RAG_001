@@ -1,16 +1,16 @@
 from ..LLMInterface import LLMInterface
-from ..LLMEnums import LLMEnums
+from ..LLMEnums import LLMEnums , OpenAIEnum
 from openai import OpenAI
 import logging
 
 class OpenAIProvider(LLMInterface) :
-    def __init__(self,api_key :str , api_url :str = None , 
+    def __init__(self,api_key :str , base_url :str = None , 
                   defualt_input_max_characters : int =1000,
                   defualt_genrated_max_output_tokens : int =1000,
                   defualt_genration_temperature : float =0.1) :
 
         self.api_key = api_key
-        self.api_url = api_url
+        self.base_url = base_url
         self.defualt_input_max_characters = defualt_input_max_characters
         self.defualt_genrated_max_output_tokens = defualt_genrated_max_output_tokens
         self.defualt_genration_temperature = defualt_genration_temperature
@@ -21,7 +21,7 @@ class OpenAIProvider(LLMInterface) :
         self.embedding_model_id = None
         self.embedding_size = None
 
-        self.client = OpenAI(api_key=self.api_key, base_url = self.api_url)
+        self.client = OpenAI(api_key=self.api_key, base_url = self.base_url)
 
         self.enums = OpenAIEnum
         self.logger = logging.getLogger(__name__)

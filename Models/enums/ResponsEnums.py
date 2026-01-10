@@ -19,3 +19,5 @@ class ResponseSignal (Enum) :
     GET_VECTOR_COLLECTION_INFO_DONE = "Get vector collection info done"
     SEARCH_INDEX_DONE = "Search index done"
     SEARCH_INDEX_NOT_FOUND = "Search index not found"
+    ANSWER_INDEX_ERROR = "Answer index error"
+    ANSWER_INDEX_DONE = "Answer index done"

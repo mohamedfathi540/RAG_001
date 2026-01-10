@@ -139,6 +139,7 @@ async def answer_index(request :Request ,project_id :str , search_request : Sear
 
     if not answer :
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
+                            content={"Signal" : ResponseSignal.ANSWER_INDEX_ERROR.value}
                             )
 
     return JSONResponse(

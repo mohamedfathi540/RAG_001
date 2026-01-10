@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from Helpers.Config import get_settings
 from Stores.LLM.LLMProviderFactory import LLMProviderFactory
 from Stores.VectorDB.VectorDBProviderFactory import VectorDBProviderFactory
-from Stores.LLM.Templates.TemplateParser import TemplateParser
+from Stores.LLM.Templates.template_parser import template_parser as TemplateParser
 
 app =FastAPI()
 

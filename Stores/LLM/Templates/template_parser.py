@@ -2,9 +2,9 @@ import os
 
 
 class template_parser : 
-    def __init__(self , language : str = None ,defualt_language : str = "en") : 
+    def __init__(self , language : str = None ,default_language : str = "en") : 
         self.current_path  = os.path.dirname (os.path.abspath(__file__))
-        self.defualt_language = defualt_language
+        self.default_language = default_language
         self.language = None
 
         self.set_language(language)
@@ -13,13 +13,13 @@ class template_parser :
     def set_language(self , language : str) : 
 
         if not language : 
-            self.language = self.defualt_language
+            self.language = self.default_language
         
         language_path = os.path.join(self.current_path,"Locales", language)
         if os.path.exists(language_path) :
             self.language = language
         else :
-            self.language = self.defualt_language
+            self.language = self.default_language
 
 
 
@@ -30,8 +30,8 @@ class template_parser :
         group_path = os.path.join(self.current_path,"Locales", self.language, f"{group}.py")
         targeted_language = self.language
         if not os.path.exists(group_path) :
-            group_path = os.path.join(self.current_path,"Locales", self.defualt_language, f"{group}.py")
-            targeted_language = self.defualt_language
+            group_path = os.path.join(self.current_path,"Locales", self.default_language, f"{group}.py")
+            targeted_language = self.default_language
         
         if not os.path.exists(group_path) :
             return None

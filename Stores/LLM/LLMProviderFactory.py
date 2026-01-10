@@ -10,7 +10,7 @@ class LLMProviderFactory :
         if provider == LLMEnums.OPENAI.value :
             return OpenAIProvider(
                 api_key = self.config.OPENAI_API_KEY,
-                api_url = self.config.OPENAI_API_URL,
+                base_url = self.config.OPENAI_BASE_URL,
                 defualt_input_max_characters = self.config.INPUT_DEFUALT_MAX_CHARACTERS,
                 defualt_genrated_max_output_tokens = self.config.GENRATED_DEFUALT_MAX_OUTPUT_TOKENS,
                 defualt_genration_temperature = self.config.GENRATION_DEFUALT_TEMPERATURE

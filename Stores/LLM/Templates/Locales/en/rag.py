@@ -1,11 +1,11 @@
-from str import Template
+from string import Template
 
 
 ### RAG prompt ###
 
 ### System Prompt ###
 
-system_prompt ="\n".join([
+system_prompt = Template("\n".join([
     "you are assistant genrate a respone for the user .",
     "you will be provided by a set of document associated with the user's query .",
     "you hve to generate a response based on the provided documents .",
@@ -14,7 +14,7 @@ system_prompt ="\n".join([
     "you have to genrate respone in th same language as the user's query .",
     "Be polite respectful and professional with the user .",
     "be precise and accurate and concise in your response , Avoid any unnecessary information .",
-])
+]))
 
 
 ### Document Prompt ###
