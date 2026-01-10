@@ -4,6 +4,7 @@ from google import genai
 from google.genai import types
 import logging
 import os
+import time
 
 class GeminiProvider(LLMInterface):
     def __init__(self, api_key: str,
@@ -71,22 +72,42 @@ class GeminiProvider(LLMInterface):
             temperature=temperature
         )
         
-        try:
-            response = self.client.models.generate_content(
-                model=self.genration_model_id,
-                contents=gemini_history,
-                config=generation_config
-            )
-            
-            if not response or not response.text:
-                 self.logger.error("Error while generating text using Gemini")
-                 return None
-                 
-            return response.text
-            
-        except Exception as e:
-            self.logger.error(f"Error calling Gemini API: {e}")
-            return None
+        retries = 3
+        for attempt in range(retries + 1):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.genration_model_id,
+                    contents=gemini_history,
+                    config=generation_config
+                )
+                
+                if not response or not response.text:
+                    if attempt < retries:
+                        # Sometimes empty response might be transient? Assuming no for now, but keeping structure valid.
+                        self.logger.error("Error while generating text using Gemini: Empty response")
+                        # For empty response we might not want to retry, or maybe we do? 
+                        # Without specific error code, assuming it's a failure we might not want to hammer retry unless it looks like a glitch.
+                        # Let's fail fast on empty but valid response object.
+                        return None
+                    return None
+                    
+                return response.text
+                
+            except Exception as e:
+                is_rate_limit = "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)
+                if is_rate_limit:
+                    if attempt < retries:
+                        wait_time = 4 * (2 ** attempt) # 4, 8, 16 
+                        self.logger.warning(f"Gemini rate limit hit. Retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        self.logger.error(f"Gemini rate limit exhausted after {retries} retries: {e}")
+                else:
+                    self.logger.error(f"Error calling Gemini API: {e}")
+                
+                # If not rate limit error, or retries exhausted, return None
+                return None
 
     def embed_text(self, text: str, document_type: str = None):
         if not self.client:
@@ -97,27 +118,41 @@ class GeminiProvider(LLMInterface):
             self.logger.error("Gemini embedding model is not initialized")
             return None
 
-        try:
-            # Gemini embedding task type
-            task_type = "RETRIEVAL_DOCUMENT" if document_type == "document" else "RETRIEVAL_QUERY"
-            
-            result = self.client.models.embed_content(
-                model=self.embedding_model_id,
-                contents=text,
-                config=types.EmbedContentConfig(
-                    task_type=task_type,
-                    title="Embedding" if task_type == "RETRIEVAL_DOCUMENT" else None 
+        retries = 3
+        for attempt in range(retries + 1):
+            try:
+                # Gemini embedding task type
+                task_type = "RETRIEVAL_DOCUMENT" if document_type == "document" else "RETRIEVAL_QUERY"
+                
+                result = self.client.models.embed_content(
+                    model=self.embedding_model_id,
+                    contents=text,
+                    config=types.EmbedContentConfig(
+                        task_type=task_type,
+                        title="Embedding" if task_type == "RETRIEVAL_DOCUMENT" else None 
+                    )
                 )
-            )
-            
-            if not result or not result.embeddings:
-                self.logger.error("Error while embedding text using Gemini")
-                return None
+                
+                if not result or not result.embeddings:
+                    self.logger.error("Error while embedding text using Gemini")
+                    return None
 
-            return result.embeddings[0].values
-        except Exception as e:
-            self.logger.error(f"Error calling Gemini Embedding API: {e}")
-            return None
+                return result.embeddings[0].values
+                
+            except Exception as e:
+                is_rate_limit = "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)
+                if is_rate_limit:
+                    if attempt < retries:
+                        wait_time = 4 * (2 ** attempt) # 4, 8, 16
+                        self.logger.warning(f"Gemini rate limit hit (Embedding). Retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        self.logger.error(f"Gemini embedding rate limit exhausted after {retries} retries: {e}")
+                else:
+                    self.logger.error(f"Error calling Gemini Embedding API: {e}")
+                
+                return None
 
     def construct_prompt(self, prompt: str, role: str):
         # This is used by the controller to append to history. 
