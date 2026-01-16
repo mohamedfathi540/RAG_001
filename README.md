@@ -94,3 +94,8 @@ This uses Swagger UI to let you interactively test the API endpoints.
 *   `Stores`: LLM and VectorDB integrations.
 *   `Helpers`: Utility functions and configuration.
 
+## Activation of the virtual environment
+
+```bash
+source .venv/bin/activate
+```
