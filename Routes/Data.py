@@ -114,7 +114,7 @@ async def process_endpoint (request :Request ,project_id :int ,process_request :
         project_files_ids =await asset_model.get_all_project_asset(asset_project_id=project.project_id,
                                                                    asset_type=assettypeEnum.FILE.value)
         project_files_ids ={
-            record.asset_project_id : record.asset_name
+            record.asset_id : record.asset_name
             for record in project_files_ids
         }
     
