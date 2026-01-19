@@ -1,6 +1,7 @@
 from ..VectorDBInterface import VectorDBInterface
 from ..VectorDBEnums import (DistanceMethodEnums, PgVectorTableSchemeEnums, 
                         PgvectorDistanceMethodEnums, PgvectorIndexTypeEnums)
+from sqlalchemy.sql import text as sql_text
 import logging
 from typing import List, Dict, Any, Optional
 from Models.DB_Schemes import RetrivedDocument
@@ -9,73 +10,112 @@ from sqlalchemy.engine import Engine
 import json, uuid
 
 class PGVectorProvider(VectorDBInterface):
-    def __init__(self, db_path: str, distance_method: str):
-        self.db_path = db_path
+    def __init__(self, db_client ,defualt_vector_size : int = 786
+                , distance_method: str = None):
+        self.db_client = db_client
+        self.defualt_vector_size = defualt_vector_size
         self.distance_method = distance_method
-        self.logger = logging.getLogger(__name__)
-        self.engine: Optional[Engine] = None
-        
-        self.operator_map = {}
-        self.opclass_map = {}
-        
-        if self.distance_method == DistanceMethodEnums.COSINE.value:
-            self.operator_map["search"] = "<=>"
-            self.opclass_map["index"] = "vector_cosine_ops" 
-        elif self.distance_method == DistanceMethodEnums.DOT.value:
-            self.operator_map["search"] = "<#>"
-            self.opclass_map["index"] = "vector_ip_ops"
-        else:
-            self.operator_map["search"] = "<->"
-            self.opclass_map["index"] = "vector_l2_ops"
+        self.pgvector_table_prefix = PgVectorTableSchemeEnums._PREFIX.value
+        self.logger = logging.getLogger("uvicorn")
 
-    def connect(self):
+
+    async def connect(self):
         try:
-            self.engine = create_engine(self.db_path)
-            with self.engine.connect() as connection:
-                connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-                connection.commit()
+            async with self.db_client() as session:
+                async with session.begin():
+                    await session.execute(sql_text("CREATE EXTENSION IF NOT EXISTS vector"))
+                    await session.commit()
+
         except Exception as e:
             self.logger.error(f"Failed to connect to PGVector DB: {e}")
             raise e
 
-    def disconnect(self):
-        if self.engine:
-            self.engine.dispose()
-            self.engine = None
 
-    def is_collection_exists(self, collection_name: str) -> bool:
-        if not self.engine:
-            self.connect()
-        return inspect(self.engine).has_table(collection_name)
+    async def disconnect(self):
+        pass
+        
 
-    def list_all_collections(self) -> List[str]:
-        if not self.engine:
-            self.connect()
-        return inspect(self.engine).get_table_names()
+    async def is_collection_exists(self, collection_name: str) -> bool:
+        try:
+            record = None
+            async with self.db_client() as session:
+                async with session.begin():
+                    list_tbl = sql_text('SELECT * FROM pg_tables WHERE tablename = :collection_name')
+                    results = await session.execute(list_tbl, {"collection_name": collection_name})
+                    record = results.scalar_one_or_none()
+            return record is not None
 
-    def get_collection_info(self, collection_name: str) -> dict:
-        if not self.is_collection_exists(collection_name):
-            return {}
-        return {"name": collection_name, "exists": True}
+        except Exception as e:
+            self.logger.error(f"Failed to check if collection exists: {e}")
+            raise e
+    
 
-    def delete_collection(self, collection_name: str):
-        if not self.engine:
-            self.connect()
-        with self.engine.connect() as connection:
-            connection.execute(text(f"DROP TABLE IF EXISTS {collection_name}"))
-            connection.commit()
+    async def list_all_collections(self) -> List[str]:
+        try:
+            records = []
+            async with self.db_client() as session:
+                async with session.begin():
+                    list_tbl = sql_text('SELECT tablename FROM pg_tables WHERE tablename LIKE :prefix')
+                    results = await session.execute(list_tbl,{"prefix" : self.pgvector_table_prefix})
+                    records = results.scalars().all()
+            return records   
 
-    def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
-        if not self.engine:
-            self.connect()
+        except Exception as e:
+            self.logger.error(f"Failed to list all collections: {e}")
+            raise e
+
+
+    async def get_collection_info(self, collection_name: str) -> dict:
+       async with self.db_client() as session:
+               try:
+                async with session.begin():
+                    table_inf_sql = sql_text('''
+                    SELECT schemaname, tablename,tableowner, tablespace, hasindexes
+                    FROM pg_tables
+                    WHERE table_name = :collection_name
+                    ''')
+                     
+                    count = sql_text(f'SELECT COUNT(*) FROM {collection_name}')
+                    table_info = await session.execute(table_inf_sql, {"collection_name": collection_name})
+                    record_count = await session.execute(count,{"collection_name": collection_name})
+
+                    table_data = table_info.fetchone()
+                    if not table_data:
+                        return None
+
+                    return {
+                        "table_info": dict(table_data),
+                        "record_count": record_count
+                    }
+
+                except Exception as e:
+                    self.logger.error(f"Failed to get collection info: {e}")
+                    raise e
+
+
+    async def delete_collection(self, collection_name: str):
+        try:
+            async with self.db_client() as session:
+                async with session.begin():
+                    delete_tbl = sql_text('DROP TABLE IF EXISTS :collection_name')
+                    await session.execute(delete_tbl, {"collection_name": collection_name})
+                    await session.commit()
+            return True
             
-        if do_reset:
-            self.delete_collection(collection_name)
-            
-        if self.is_collection_exists(collection_name):
-            return False
+        except Exception as e:
+            self.logger.error(f"Failed to delete collection: {e}")
+            raise e
 
-        cols = PgVectorTableSchemeEnums
+
+    async def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
+        try:
+            if do_reset:
+                await self.delete_collection(collection_name)
+            
+            if await self.is_collection_exists(collection_name):
+                return False
+
+            cols = PgVectorTableSchemeEnums
         
         create_table_sql = f"""
         CREATE TABLE {collection_name} (
