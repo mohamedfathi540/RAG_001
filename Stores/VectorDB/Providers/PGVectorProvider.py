@@ -50,7 +50,7 @@ class PGVectorProvider(VectorDBInterface):
                     results = await session.execute(list_tbl, {"collection_name": collection_name})
                     record = results.scalar_one_or_none()
             return record is not None
-
+``
         except Exception as e:
             self.logger.error(f"Failed to check if collection exists: {e}")
             raise e
@@ -75,15 +75,14 @@ class PGVectorProvider(VectorDBInterface):
        async with self.db_client() as session:
                try:
                 async with session.begin():
-                    table_inf_sql = sql_text('''
-                    SELECT schemaname, tablename,tableowner, tablespace, hasindexes
+                    table_inf_sql = sql_text(f'''SELECT schemaname, tablename,tableowner, tablespace, hasindexes
                     FROM pg_tables
-                    WHERE table_name = :collection_name
+                    WHERE table_name = {collection_name}
                     ''')
                      
-                    count = sql_text(f'SELECT COUNT(*) FROM {collection_name}')
-                    table_info = await session.execute(table_inf_sql, {"collection_name": collection_name})
-                    record_count = await session.execute(count,{"collection_name": collection_name})
+                    count_sql    = sql_text(f'SELECT COUNT(*) FROM {collection_name}')
+                    table_info   = await session.execute(table_inf_sql)
+                    record_count = await session.execute(count_sql)
 
                     table_data = table_info.fetchone()
                     if not table_data:
@@ -104,8 +103,8 @@ class PGVectorProvider(VectorDBInterface):
             async with self.db_client() as session:
                 async with session.begin():
                     self.logger.info(f"Deleting collection: {collection_name}")
-                    delete_tbl = sql_text('DROP TABLE IF EXISTS :collection_name')
-                    await session.execute(delete_tbl, {"collection_name": collection_name})
+                    delete_tbl = sql_text(f'DROP TABLE IF EXISTS {collection_name}')
+                    await session.execute(delete_tbl)
                     await session.commit()
             return True
             
@@ -149,14 +148,13 @@ class PGVectorProvider(VectorDBInterface):
             index_name = self.defualt_index_name(collection_name = collection_name)
             async with self.db_client() as session:
                     async with session.begin():
-                        check_sql = sql_text("""
+                        check_sql = sql_text(f"""
                             SELECT 1 FROM pg_indexes
-                            WHERE tablename = :table_name
-                            AND indexname = :index_name
+                            WHERE tablename = {collection_name}
+                            AND indexname = {index_name}
                         """)
                         
-                        results = await session.execute(check_sql, {"table_name": collection_name,
-                                                                     "index_name": index_name})
+                        results = await session.execute(check_sql)
                         record = bool(results.scalar_one_or_none())
                         
                         return record
