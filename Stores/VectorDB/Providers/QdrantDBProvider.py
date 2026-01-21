@@ -6,32 +6,28 @@ from typing import List
 from Models.DB_Schemes import RetrivedDocument
 
 class QdrantDBProvider(VectorDBInterface):
-    def __init__(self,db_client :str,distance_method : strdefualt_vector_size : int = 786
-                , distance_method: str = None , index_threshold : int = 10000 ):
-
-
-        self.client = None
+    def __init__(self, db_client: str, distance_method: str = None, default_vector_size: int = 786, index_threshold: int = 10000):
         self.db_client = db_client
         self.distance_method = None
-        self.defualt_vector_size = defualt_vector_size
+        self.default_vector_size = default_vector_size
         self.index_threshold = index_threshold
 
         self.logger = logging.getLogger('uvicorn')
 
-        if distance_method == DistanceMethodEnums.COSINE.value :
+        if distance_method == DistanceMethodEnums.COSINE.value:
             self.distance_method = models.Distance.COSINE
 
-        elif distance_method == DistanceMethodEnums.DOT.value :
+        elif distance_method == DistanceMethodEnums.DOT.value:
             self.distance_method = models.Distance.DOT
 
 
 
     async def connect(self):
-        self.client = QdrantClient(path= self.db_client )
+        self.client = QdrantClient(path= self.db_client)
 
 
     async def disconnect(self):
-        self.client = None
+        pass
 
 
     async def is_collection_exists(self, collection_name: str) -> bool:
@@ -48,20 +44,21 @@ class QdrantDBProvider(VectorDBInterface):
 
     async def delete_collection(self, collection_name: str):
         if self.is_collection_exists(collection_name) :
+            self.logger.info(f"Deleting collection: {collection_name}")
             return self.client.delete_collection(collection_name = collection_name)
 
 
-   async def create_collection(self, collection_name: str , embedding_size : int ,do_reset : bool = False):
-        if do_reset :
-            _ =  self.client.delete_collection(collection_name = collection_name)
+    async def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
+        if do_reset:
+            _ = self.client.delete_collection(collection_name=collection_name)
 
-        if not self.is_collection_exists (collection_name) :
-            self.logger.inf(f"Creating new Qdrant collection : {collection_name}")
+        if not self.is_collection_exists(collection_name):
+            self.logger.info(f"Creating new Qdrant collection : {collection_name}")
             _ = self.client.create_collection(
-                collection_name = collection_name ,
-                vectors_config = models.VectorParams(
-                size = embedding_size ,
-                distance = self.distance_method 
+                collection_name=collection_name,
+                vectors_config=models.VectorParams(
+                    size=embedding_size,
+                    distance=self.distance_method
                 )
             )
 

@@ -37,7 +37,7 @@ async def index_project (request :Request ,project_id :int ,push_request : PushR
     has_records = True
     page_no = 1
     inserted_items_count = 0
-    idx = 0
+
 
 
     #create collection if not esixted
@@ -58,11 +58,10 @@ async def index_project (request :Request ,project_id :int ,push_request : PushR
         if not page_chunks or len(page_chunks) == 0 :
             has_records = False
             break
-        chunks_ids = list (range(idx , idx + len(page_chunks)))
-        idx += len(page_chunks)
+        chunks_ids = [chunk.chunk_id for chunk in page_chunks]
         
         is_inserted = await nlp_controller.index_into_vector_db(project=project , chunks=page_chunks ,
-                                                            chunks_ids=chunks_ids ,do_reset=push_request.do_reset)
+                                                            chunks_ids=chunks_ids )
         if not is_inserted :
             return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                                 content={"Signal" : ResponseSignal.INSERT_INTO_VECTOR_DB_ERROR.value})

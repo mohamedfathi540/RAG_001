@@ -16,14 +16,14 @@ class PgVectorTableSchemeEnums (Enum) :
     ID = "id"
     TEXT = "text"
     VECTORS = "vectors"
-    CHUNCK_ID = "chunck_id"
+    CHUNK_ID = "chunk_id"
     METADATA = "metadata"
     _PREFIX = "pgvector"
 
 
 class PgvectorDistanceMethodEnums (Enum) :
     COSINE = "vector_cosine_ops"
-    DOT = "vector_12_ops"
+    DOT = "vector_l2_ops"
 
 class PgvectorIndexTypeEnums (Enum) :
     IVFFLAT = "ivfflat"

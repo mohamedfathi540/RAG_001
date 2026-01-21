@@ -41,7 +41,7 @@ class settings (BaseSettings):
     VECTORDB_BACKEND : str 
     VECTORDB_PATH : str
     VECTORDB_DISTANCE_METHOD : str = None
-    VECTORDB_PGVEC_INDEX_THRESHOLD : int = 10000
+    VECTORDB_PGVEC_INDEX_THRESHOLD : int = 4
 
 
     DEFUALT_LANGUAGE : str = "en"

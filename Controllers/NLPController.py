@@ -23,7 +23,7 @@ class NLPController (basecontroller) :
 
 
     def create_collection_name (self , project_id  : str) :
-        return f"collection_{self.vectordb_client.defualt_vector_size}_{project_id}".strip()
+        return f"collection_{self.vectordb_client.default_vector_size}_{project_id}".strip()
 
 
     async def reset_vector_db_collection (self , project : Project) :
@@ -42,11 +42,14 @@ class NLPController (basecontroller) :
     async def index_into_vector_db ( self, project : Project , chunks : list [dataChunk] , 
                                 chunks_ids: List[int],do_reset : bool = False) :
         
-        collection_name = await self.create_collection_name(project_id = project.project_id)
+        collection_name = self.create_collection_name(project_id = project.project_id)
 
         texts = [c.chunk_text for c in chunks]
         metadata = [c.chunk_metadata for c in chunks]
         vectors = self.embedding_client.embed_text(text = texts ,document_type = DocumentTypeEnum.DOCUMENT.value )
+
+        if not vectors:
+            return False
 
         _ = await self.vectordb_client.create_collection(collection_name = collection_name , do_reset = do_reset ,
                                                     embedding_size  = self.embedding_client.embedding_size)
@@ -70,7 +73,7 @@ class NLPController (basecontroller) :
             return False
 
         if isinstance(vector ,list) and len(vector) > 0:
-            query_vector = vectors[0]
+            query_vector = vector[0]
 
         if not query_vector:
             return False

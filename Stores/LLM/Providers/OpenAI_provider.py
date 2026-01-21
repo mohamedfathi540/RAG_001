@@ -8,15 +8,15 @@ from typing import List, Union
 
 class OpenAIProvider(LLMInterface) :
     def __init__(self,api_key :str , base_url :str = None , 
-                  defualt_input_max_characters : int =1000,
-                  defualt_genrated_max_output_tokens : int =1000,
-                  defualt_genration_temperature : float =0.1) :
+                  default_input_max_characters : int =1000,
+                  default_genrated_max_output_tokens : int =1000,
+                  default_genration_temperature : float =0.1) :
 
         self.api_key = api_key
         self.base_url = base_url 
-        self.defualt_input_max_characters = defualt_input_max_characters
-        self.defualt_genrated_max_output_tokens = defualt_genrated_max_output_tokens
-        self.defualt_genration_temperature = defualt_genration_temperature
+        self.default_input_max_characters = default_input_max_characters
+        self.default_genrated_max_output_tokens = default_genrated_max_output_tokens
+        self.default_genration_temperature = default_genration_temperature
 
 
         self.genration_model_id = None        
@@ -42,7 +42,7 @@ class OpenAIProvider(LLMInterface) :
 
 
     def process_text(self ,text : str) :
-        return text [:self.defualt_input_max_characters].strip()
+        return text [:self.default_input_max_characters].strip()
 
 
     def genrate_text(self ,prompt : str , max_output_tokens : int =None ,temperature : float =None , chat_history : list =[]) :
@@ -54,8 +54,8 @@ class OpenAIProvider(LLMInterface) :
             self.logger.error("OpenAI genration model is not initialized")
             return None
         
-        max_output_tokens = max_output_tokens if max_output_tokens else self.defualt_genrated_max_output_tokens
-        temperature = temperature if temperature else self.defualt_genration_temperature
+        max_output_tokens = max_output_tokens if max_output_tokens else self.default_genrated_max_output_tokens
+        temperature = temperature if temperature else self.default_genration_temperature
 
         chat_history.append (self.construct_prompt(prompt = prompt,role = OpenAIEnum.USER.value))
 
