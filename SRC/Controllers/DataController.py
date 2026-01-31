@@ -13,7 +13,11 @@ class datacontroller(basecontroller) :
 
     def validate_uploaded_file(self, file : UploadFile) :
 
+        print(f"[DEBUG] validate_uploaded_file: Received content_type='{file.content_type}', filename='{file.filename}'")
+        print(f"[DEBUG] validate_uploaded_file: Allowed types={self.app_settings.FILE_ALLOWED_TYPES}")
+
         if file.content_type not in self.app_settings.FILE_ALLOWED_TYPES :
+            print(f"[DEBUG] validate_uploaded_file: Type '{file.content_type}' NOT in allowed list")
             return False,ResponseSignal.FILE_TYPE_NOT_SUPPORTED.value
         
         if file.size > self.app_settings.FILE_MAX_SIZE * self.size_scale :

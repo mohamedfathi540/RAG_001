@@ -11,8 +11,8 @@ from typing import List, Union
 class GeminiProvider(LLMInterface):
     def __init__(self, api_key: str,
                  default_input_max_characters: int = 1000,
-                 default_genrated_max_output_tokens: int = 1000,
-                 default_genration_temperature: float = 0.1):
+                 default_genrated_max_output_tokens: int = 8192,
+                 default_genration_temperature: float = 0.2):
 
         self.api_key = api_key
         self.default_input_max_characters = default_input_max_characters
@@ -39,7 +39,8 @@ class GeminiProvider(LLMInterface):
         self.embedding_size = embedding_size
 
     def process_text(self, text: str):
-        return text[:self.default_input_max_characters].strip()
+        # Removed truncation as requested
+        return text.strip()
 
     def genrate_text(self, prompt: str, max_output_tokens: int = None, temperature: float = None, chat_history: list = []):
         if not self.client:
@@ -53,25 +54,28 @@ class GeminiProvider(LLMInterface):
         max_output_tokens = max_output_tokens if max_output_tokens else self.default_genrated_max_output_tokens
         temperature = temperature if temperature else self.default_genration_temperature
 
-        # Convert chat history to Gemini format
+        # Convert chat history to Gemini format and extract system instruction
         gemini_history = []
+        system_instruction = None
+
         for message in chat_history:
             role = message.get("role")
             content = message.get("content")
             
-            if role == GeminiEnum.USER.value:
+            if role == GeminiEnum.SYSTEM.value:
+                system_instruction = content
+            elif role == GeminiEnum.USER.value:
                 gemini_history.append(types.Content(role="user", parts=[types.Part(text=content)]))
             elif role == GeminiEnum.ASSISTANT.value:
                 gemini_history.append(types.Content(role="model", parts=[types.Part(text=content)]))
-            # System instructions are typically handled differently in Gemini (e.g. at model init), 
-            # but for simplicity in this chat loop, we might treat them as user prompts or skip if unsupported in this flow.
 
         # Append the current prompt
         gemini_history.append(types.Content(role="user", parts=[types.Part(text=self.process_text(prompt))]))
 
         generation_config = types.GenerateContentConfig(
             max_output_tokens=max_output_tokens,
-            temperature=temperature
+            temperature=temperature,
+            system_instruction=system_instruction
         )
         
         retries = 3
@@ -85,11 +89,7 @@ class GeminiProvider(LLMInterface):
                 
                 if not response or not response.text:
                     if attempt < retries:
-                        # Sometimes empty response might be transient? Assuming no for now, but keeping structure valid.
                         self.logger.error("Error while generating text using Gemini: Empty response")
-                        # For empty response we might not want to retry, or maybe we do? 
-                        # Without specific error code, assuming it's a failure we might not want to hammer retry unless it looks like a glitch.
-                        # Let's fail fast on empty but valid response object.
                         return None
                     return None
                     
@@ -108,7 +108,6 @@ class GeminiProvider(LLMInterface):
                 else:
                     self.logger.error(f"Error calling Gemini API: {e}")
                 
-                # If not rate limit error, or retries exhausted, return None
                 return None
 
     def embed_text(self, text: Union[str,List[str]], document_type: str = None):
@@ -161,7 +160,4 @@ class GeminiProvider(LLMInterface):
 
     def construct_prompt(self, prompt: str, role: str):
         # This is used by the controller to append to history. 
-        # The controller likely uses the enum value.
-        # We return the dict properly formatted for internal tracking, 
-        # which genrate_text will then convert.
         return {"role": role, "content": prompt}

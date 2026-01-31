@@ -105,8 +105,13 @@ async def process_endpoint (request :Request ,project_id :int ,process_request :
     )
 
     if process_request.file_id:
-        asset_record = await asset_model.get_asset_record(asset_project_id=project_id,
-                                                          asset_name=process_request.file_id)
+        try:
+            file_id_int = int(process_request.file_id)
+            asset_record = await asset_model.get_asset_by_id(asset_id=file_id_int)
+        except ValueError:
+            # If it's not a numeric ID, try looking up by name (backwards compatibility)
+            asset_record = await asset_model.get_asset_record(asset_project_id=project_id,
+                                                              asset_name=process_request.file_id)
         if asset_record is None :
             return JSONResponse(
             status_code = status.HTTP_400_BAD_REQUEST ,
@@ -153,7 +158,13 @@ async def process_endpoint (request :Request ,project_id :int ,process_request :
 
         if file_content is None :
             logger.error(f"Error while processing file : {file_id}")
-            continue
+            return JSONResponse(
+            status_code = status.HTTP_400_BAD_REQUEST,
+            content={
+                    "signal": ResponseSignal.PROCESSING_FAILED.value,
+                    "error": f"Failed to load content for file {file_id}. It might be empty, corrupted, or have an unsupported format."
+            }
+            )
 
         file_chunks = Process_Controller.process_file_content(
             file_content = file_content,
@@ -165,8 +176,11 @@ async def process_endpoint (request :Request ,project_id :int ,process_request :
 
         if file_chunks is None or len(file_chunks) == 0:
             return JSONResponse(
+            status_code = status.HTTP_400_BAD_REQUEST,
             content={
-                    "signal": ResponseSignal.PROCESSING_FAILED.value          }
+                    "signal": ResponseSignal.PROCESSING_FAILED.value,
+                    "error": f"Processing resulted in 0 chunks for file {file_id}. Please check if the file contains readable text."
+            }
             )
 
         file_chunks_records = [

@@ -1,0 +1,35 @@
+# Fehres
+
+# Dependencies
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+SRC/.env
+
+# Lock files
+*.lock
+uv.lock
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# User data and uploads
+SRC/Assets/Files/*/
+SRC/Assets/Database/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -3,6 +3,8 @@ from .ProjectController import projectcontroller
 import os
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_community.document_loaders import CSVLoader
+from langchain_community.document_loaders import Docx2txtLoader
 from Models import processingEnum
 from typing import List
 from dataclasses import dataclass
@@ -30,25 +32,42 @@ class processcontroller (basecontroller) :
             self.project_path,
             file_id
         )
-        if not os.path.exists(file_path) :
+        
+        print(f"[DEBUG] get_file_loader: Checking path: {file_path}")
+        if not os.path.exists(file_path):
+            print(f"[ERROR] get_file_loader: File not found at {file_path}")
             return None
         
         if file_ext == processingEnum.TXT.value :
            return TextLoader( file_path,encoding= "utf-8")
         
         if file_ext == processingEnum.PDF.value :
-
-            print(f"Checking path: {file_path}")
-            print(f"Does it exist? {os.path.exists(file_path)}")
             return PyMuPDFLoader(file_path)
 
+        if file_ext == processingEnum.MD.value :
+           return TextLoader( file_path,encoding= "utf-8")
+
+        if file_ext == processingEnum.JSON.value :
+           return TextLoader( file_path,encoding= "utf-8")
+
+        if file_ext == processingEnum.CSV.value :
+           return CSVLoader( file_path,encoding= "utf-8")
+
+        if file_ext == processingEnum.DOCX.value :
+           return Docx2txtLoader( file_path)
+
+        print(f"[ERROR] get_file_loader: Unsupported file extension {file_ext}")
         return None
     
     def get_file_content (self, file_id :str) :
         loader = self.get_file_loader(file_id = file_id)
 
         if loader:
-            return loader.load()
+            try:
+                return loader.load()
+            except Exception as e:
+                print(f"[ERROR] get_file_content: Failed to load content for {file_id}. Error: {str(e)}")
+                return None
         
         return None
         

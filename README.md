@@ -1,106 +1,160 @@
-# My First RAG Project
+# Fehres
 
-This project is a Retrieval-Augmented Generation (RAG) system built with FastAPI, LangChain, and Vector Databases (like Qdrant/pgvector). It provides an API to upload documents, process them into chunks, index them, and ask questions based on the document context.
+A Retrieval-Augmented Generation (RAG) system for document-based question answering. Upload documents, process them into searchable chunks, and get AI-generated answers based on your content.
 
-## Prerequisites
+## Features
 
-Before seeking to run the project, ensure you have the following installed:
+- **Multi-format Document Support**: PDF, TXT, Markdown, JSON, CSV, DOCX
+- **Multiple LLM Providers**: OpenAI, Google Gemini, Cohere
+- **Vector Database Options**: PostgreSQL with pgvector, Qdrant
+- **RESTful API**: FastAPI backend with OpenAPI documentation
+- **Monitoring**: Prometheus metrics and Grafana dashboards
+- **Docker Ready**: Full containerized deployment with Docker Compose
 
-*   **Python**: version 3.11.14 or higher
-*   **uv**: A fast Python package installer and resolver.
-*   **Docker** (Optional but recommended for running DB services like Postgres/Qdrant)
+## Architecture
 
-## Installation
+```
+                    ┌─────────────────┐
+                    │   Streamlit UI  │
+                    │   (Testing)     │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │     Nginx       │
+                    │  (Reverse Proxy)│
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │    FastAPI      │
+                    │   Application   │
+                    └───┬────────┬────┘
+                        │        │
+         ┌──────────────┘        └──────────────┐
+         │                                      │
+┌────────▼────────┐                  ┌──────────▼──────────┐
+│   PostgreSQL    │                  │   LLM Providers     │
+│   (pgvector)    │                  │ OpenAI/Gemini/Cohere│
+└─────────────────┘                  └─────────────────────┘
+```
 
-1.  **Clone the repository** (if you haven't already).
+## Quick Start
 
-2.  **Initialize the virtual environment**:
+### Prerequisites
 
-    ```bash
-    uv init
-    uv sync
-    ```
+- Python 3.11.14+
+- [uv](https://github.com/astral-sh/uv) (recommended) or pip
+- Docker and Docker Compose (for containerized deployment)
 
-3.  **Verify Python Version**:
+### Local Development
 
-    ```bash
-    uv run python --version
-    # Should be 3.11.14 or compatible
-    ```
+1. Clone the repository
 
-4.  **Install Requirements**:
+   ```bash
+   git clone <repository-url>
+   cd fehres
+   ```
 
-    ```bash
-    uv pip install -r requirements.txt
-    ```
+2. Set up environment
+
+   ```bash
+   cd SRC
+   cp .env.example .env
+   # Edit .env with your API keys and database credentials
+   ```
+
+3. Install dependencies
+
+   ```bash
+   uv sync
+   # or: pip install -r requirements.txt
+   ```
+
+4. Run database migrations
+
+   ```bash
+   uv run python -m alembic upgrade head
+   ```
+
+5. Start the server
+
+   ```bash
+   uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+6. Access the API at `http://localhost:8000/docs`
+
+### Docker Deployment
+
+```bash
+cd Docker
+docker compose up -d
+```
+
+Services will be available at:
+
+- API: http://localhost:8000
+- API via Nginx: http://localhost
+- Grafana: http://localhost:3000
+- Prometheus: http://localhost:9090
+
+See [Docker/README.md](Docker/README.md) for detailed Docker configuration.
+
+## Usage
+
+1. **Upload** a document via `/api/v1/data/upload/{project_id}`
+2. **Process** the document into chunks via `/api/v1/data/process/{project_id}`
+3. **Index** chunks to the vector database via `/api/v1/nlp/index/push/{project_id}`
+4. **Ask** questions via `/api/v1/nlp/index/answer/{project_id}`
+
+For full API documentation, see [API.md](API.md).
+
+## Project Structure
+
+```
+fehres/
+├── SRC/                    # Application source code
+│   ├── main.py             # FastAPI application entry
+│   ├── Routes/             # API endpoint definitions
+│   ├── Controllers/        # Business logic
+│   ├── Models/             # Data models and database schemas
+│   ├── Stores/             # LLM and VectorDB integrations
+│   └── Helpers/            # Configuration and utilities
+├── Docker/                 # Docker configuration
+├── streamlit_app/          # Testing frontend
+├── API.md                  # API reference
+└── README.md
+```
 
 ## Configuration
 
-1.  **Environment Variables**:
-    Copy the example environment file to create your own `.env` file:
+Key environment variables (see `.env.example` for full list):
 
-    ```bash
-    cp .env.example .env
-    ```
+| Variable            | Description                                   |
+| ------------------- | --------------------------------------------- |
+| `GENRATION_BACKEND` | LLM provider: `OPENAI`, `GEMINI`, or `COHERE` |
+| `EMBEDDING_BACKEND` | Embedding provider                            |
+| `VECTORDB_BACKEND`  | Vector DB: `PGVECTOR` or `QDRANT`             |
+| `POSTGRES_*`        | PostgreSQL connection settings                |
+| `*_API_KEY`         | API keys for LLM providers                    |
 
-2.  **Edit the `.env` file**:
-    Open `.env` and fill in the necessary details. Key variables usually include:
-    *   `OPENAI_API_KEY`: For LLM generation and embeddings (if using OpenAI).
-    *   `POSTGRES_*`: Database connection details.
-    *   `VECTORDB_*`: Vector Database configuration.
+## Testing
 
-## Running the Application
-
-To start the API server, use the following command:
-
-```bash
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 5000
-```
-
-The API will be available at `http://0.0.0.0:5000`.
-
-## Testing & Verification
-
-### 1. Automated Verification Script
-We have included a `verify.py` script to quickly check if the server is up and running.
-
-**Make sure the server is running in a separate terminal**, then run:
+### Verify Server
 
 ```bash
 uv run python verify.py
 ```
 
-If successful, you should see:
-> ✅ Health check passed!
-
-### 2. Manual Testing via API Docs
-Open your browser and navigate to:
-[http://0.0.0.0:5000/docs](http://0.0.0.0:5000/docs)
-
-This uses Swagger UI to let you interactively test the API endpoints.
-
-### 3. Step-by-Step Usage (Example)
-1.  **Health Check**: GET `/api/v1/`
-2.  **Upload File**: POST `/api/v1/data/upload/{project_id}`
-3.  **Process File**: POST `/api/v1/data/process/{project_id}`
-4.  **Index Data**: POST `/api/v1/nlp/index/push/{project_id}`
-5.  **Search/Ask**: POST `/api/v1/nlp/index/search/{project_id}` or `/api/v1/nlp/index/answer/{project_id}`
-
-## Project Structure
-*   `main.py`: Entry point of the application.
-*   `Routes`: API definitions.
-*   `Controllers`: Business logic.
-*   `Models`: Data models and schemas.
-*   `Stores`: LLM and VectorDB integrations.
-*   `Helpers`: Utility functions and configuration.
-
-## Activation of the virtual environment
+### Streamlit UI
 
 ```bash
-source .venv/bin/activate
+cd streamlit_app
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
-### 4. Migrate the Database
-```bash
-uv run python -m alembic upgrade head
-```
+See [streamlit_app/README.md](streamlit_app/README.md) for more details.
+
+## License
+
+Apache License 2.0 - see [LICENCE](LICENCE) for details.

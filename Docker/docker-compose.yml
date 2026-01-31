@@ -1,8 +1,5 @@
 services:
-
-
   #FASTAPI Application
-
 
   fastapi:
     build:
@@ -12,7 +9,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - fastapi_data:/app/assets
+      - fastapi_data:/app/Assets
     networks:
       - backend
     restart: always
@@ -21,8 +18,6 @@ services:
         condition: service_healthy
     env_file:
       - ./env/.env.app
-     
-
 
   #Nginx Service
   nginx:
@@ -38,8 +33,6 @@ services:
       - backend
     restart: always
 
-
-
   #PostgreSQL (PGvector)
 
   pgvector:
@@ -48,7 +41,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - 'pgvector:/var/lib/postgresql/data'
+      - "pgvector:/var/lib/postgresql/data"
     env_file:
       - ./env/.env.postgres
     networks:
@@ -61,7 +54,6 @@ services:
       retries: 5
       start_period: 10s
 
-
   #Qdrant (Vector DB)
 
   qdrant:
@@ -71,11 +63,10 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - 'qdrant_data:/qdrant/storage'
+      - "qdrant_data:/qdrant/storage"
     networks:
       - backend
     restart: always
-  
 
   #Prometheus Monitoring
   prometheus:
@@ -84,18 +75,17 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - 'prometheus_data:/prometheus'
+      - "prometheus_data:/prometheus"
       - ./Prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - backend
     restart: always
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
 
   #Grafana Visualization
   grafana:
@@ -104,7 +94,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - 'grafana_data:/var/lib/grafana'
+      - "grafana_data:/var/lib/grafana"
     env_file:
       - ./env/.env.grafana
     depends_on:
@@ -112,9 +102,8 @@ services:
     networks:
       - backend
     restart: always
-  
 
-#Node Exporter for system metrics
+  #Node Exporter for system metrics
   node_exporter:
     image: prom/node-exporter:latest
     container_name: node_exporter
@@ -125,16 +114,15 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)' 
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     networks:
       - backend
     restart: always
 
-
-#PostgreSQL Exporter
+  #PostgreSQL Exporter
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: postgres_exporter
@@ -148,7 +136,6 @@ services:
       - backend
     restart: always
 
-
 networks:
   backend:
     driver: bridge
@@ -159,4 +146,3 @@ volumes:
   qdrant_data:
   prometheus_data:
   grafana_data:
-
