@@ -1,4 +1,4 @@
-from google.protobuf.internal.well_known_types import Duration
+
 from prometheus_client import Counter, Histogram, generate_latest , CONTENT_TYPE_LATEST
 from fastapi import Request, Response,FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -30,7 +30,8 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         end_point = request.url.path
         #Update metrics
         REQUEST_COUNT.labels(method= request.method, endpoint= end_point, status_code= response.status_code).inc()
-        REQUEST_LATENCY.labels(method= request.method, endpoint= end_point).observe(Duration)
+        duration = time.time() - request_start_time
+        REQUEST_LATENCY.labels(method= request.method, endpoint= end_point).observe(duration)
         
         return response
 
