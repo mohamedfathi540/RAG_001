@@ -42,7 +42,7 @@ async def index_project (request :Request ,project_id :int ,push_request : PushR
 
 
     settings = get_settings()
-    if push_request.do_reset and project_id == getattr(settings, "LEARNING_BOOKS_PROJECT_ID", None):
+    if push_request.do_reset :
         try:
             from Stores.Sparse import BM25Index
             BM25Index.delete_index(project.project_id)
@@ -81,7 +81,7 @@ async def index_project (request :Request ,project_id :int ,push_request : PushR
 
     p_bar.close()
 
-    if project_id == getattr(settings, "LEARNING_BOOKS_PROJECT_ID", None) and getattr(settings, "HYBRID_SEARCH_ENABLED", False):
+    if getattr(settings, "HYBRID_SEARCH_ENABLED", True):
         try:
             from Stores.Sparse import BM25Index
             all_chunks = []

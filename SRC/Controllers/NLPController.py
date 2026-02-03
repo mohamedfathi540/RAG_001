@@ -80,9 +80,7 @@ class NLPController (basecontroller) :
         settings = get_settings()
         hybrid_enabled = getattr(settings, "HYBRID_SEARCH_ENABLED", False)
         hybrid_alpha = getattr(settings, "HYBRID_SEARCH_ALPHA", 0.6)
-        learning_books_id = getattr(settings, "LEARNING_BOOKS_PROJECT_ID", None)
-
-        if hybrid_enabled and learning_books_id is not None and project.project_id == learning_books_id:
+        if hybrid_enabled:
             from Stores.Sparse import BM25Index
             candidate_mult = 2
             dense_limit = max(limit * candidate_mult, 10)

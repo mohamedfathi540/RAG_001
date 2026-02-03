@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
+import { useSettingsStore } from "../stores/settingsStore";
 import { getAnswer } from "../api/nlp";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { generateId, formatDate } from "../utils/helpers";
 import type { ChatMessage } from "../api/types";
 
-const LEARNING_BOOKS_PROJECT_ID = 10;
+
 
 export function LearningAssistantChatPage() {
+  const { projectId } = useSettingsStore();
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [contextLimit, setContextLimit] = useState(5);
@@ -22,7 +24,7 @@ export function LearningAssistantChatPage() {
 
   const answerMutation = useMutation({
     mutationFn: (text: string) =>
-      getAnswer(LEARNING_BOOKS_PROJECT_ID, { text, limit: contextLimit }),
+      getAnswer(projectId, { text, limit: contextLimit }),
     onSuccess: (data) => {
       const assistantMessage: ChatMessage = {
         id: generateId(),
@@ -63,7 +65,7 @@ export function LearningAssistantChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col h-[calc(100dvh-6rem)]">
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-text-primary">
           Learning Assistant
@@ -74,7 +76,7 @@ export function LearningAssistantChatPage() {
         </p>
       </div>
 
-      <Card className="flex-1 flex flex-col overflow-hidden">
+      <Card className="flex-1 flex flex-col overflow-hidden" contentClassName="flex-1 flex flex-col min-h-0 p-0">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {chatHistory.length === 0 ?
             <div className="flex items-center justify-center h-full text-text-muted">
@@ -86,19 +88,17 @@ export function LearningAssistantChatPage() {
                 </p>
               </div>
             </div>
-          : chatHistory.map((message) => (
+            : chatHistory.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    message.role === "user" ?
-                      "bg-primary-500 text-white rounded-br-none"
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.role === "user" ?
+                    "bg-primary-500 text-white rounded-br-none"
                     : "bg-bg-tertiary text-text-primary border border-border rounded-bl-none"
-                  }`}
+                    }`}
                 >
                   <p className="whitespace-pre-wrap">{message.content}</p>
                   <span className="text-xs opacity-70 mt-2 block">
@@ -127,41 +127,44 @@ export function LearningAssistantChatPage() {
               <label className="text-sm text-text-secondary">
                 Context chunks: {contextLimit}
               </label>
-              {chatHistory.length > 0 && (
-                <Button variant="ghost" size="sm" onPress={clearHistory}>
-                  Clear history
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-text-secondary">Project ID: <span className="font-medium text-text-primary">{projectId}</span></label>
+              </div>
             </div>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              value={contextLimit}
-              onChange={(e) => setContextLimit(parseInt(e.target.value))}
-              className="w-full"
-            />
+            {chatHistory.length > 0 && (
+              <Button variant="ghost" size="sm" onPress={clearHistory}>
+                Clear history
+              </Button>
+            )}
           </div>
-
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask about AI, Data Science, maths, ML..."
-              disabled={answerMutation.isPending}
-              className="flex-1 px-4 py-3 bg-bg-primary border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-primary-500 disabled:opacity-50"
-            />
-            <Button
-              type="submit"
-              isLoading={answerMutation.isPending}
-              isDisabled={!question.trim()}
-            >
-              <PaperAirplaneIcon className="w-5 h-5" />
-              Send
-            </Button>
-          </form>
+          <input
+            type="range"
+            min={1}
+            max={10}
+            value={contextLimit}
+            onChange={(e) => setContextLimit(parseInt(e.target.value))}
+            className="w-full"
+          />
         </div>
+
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask about AI, Data Science, maths, ML..."
+            disabled={answerMutation.isPending}
+            className="flex-1 px-4 py-3 bg-bg-primary border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-primary-500 disabled:opacity-50"
+          />
+          <Button
+            type="submit"
+            isLoading={answerMutation.isPending}
+            isDisabled={!question.trim()}
+          >
+            <PaperAirplaneIcon className="w-5 h-5" />
+            Send
+          </Button>
+        </form>
       </Card>
     </div>
   );

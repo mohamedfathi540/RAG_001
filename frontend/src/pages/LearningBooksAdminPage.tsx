@@ -7,12 +7,13 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { processFiles } from "../api/data";
+import { useSettingsStore } from "../stores/settingsStore";
+import { processFiles, resetProject } from "../api/data";
 import { pushToIndex } from "../api/nlp";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 
-const LEARNING_BOOKS_PROJECT_ID = 10;
+
 
 type Status = "idle" | "success" | "error";
 type Message = { type: Status; text: string } | null;
@@ -20,13 +21,14 @@ type Message = { type: Status; text: string } | null;
 export function LearningBooksAdminPage() {
   const [resetChunks, setResetChunks] = useState(false);
   const [resetIndex, setResetIndex] = useState(false);
+  const { projectId, setProjectId } = useSettingsStore();
   const [processMessage, setProcessMessage] = useState<Message>(null);
   const [indexMessage, setIndexMessage] = useState<Message>(null);
   const [resetMessage, setResetMessage] = useState<Message>(null);
 
   const processMutation = useMutation({
     mutationFn: () =>
-      processFiles(LEARNING_BOOKS_PROJECT_ID, {
+      processFiles(projectId, {
         chunk_size: 2000,
         overlap_size: 200,
         Do_reset: resetChunks ? 1 : 0,
@@ -45,14 +47,14 @@ export function LearningBooksAdminPage() {
 
   const indexMutation = useMutation({
     mutationFn: () =>
-      pushToIndex(LEARNING_BOOKS_PROJECT_ID, { do_reset: resetIndex }),
+      pushToIndex(projectId, { do_reset: resetIndex }),
     onSuccess: (data) => {
       setIndexMessage({
         type: "success",
         text:
           data.InsertedItemsCount != null ?
             `Indexing complete. ${data.InsertedItemsCount} items indexed.`
-          : "Indexing complete.",
+            : "Indexing complete.",
       });
       setProcessMessage(null);
     },
@@ -67,13 +69,8 @@ export function LearningBooksAdminPage() {
   const runReset = async () => {
     setResetMessage(null);
     try {
-      await processFiles(LEARNING_BOOKS_PROJECT_ID, {
-        chunk_size: 2000,
-        overlap_size: 200,
-        Do_reset: 1,
-      });
-      await pushToIndex(LEARNING_BOOKS_PROJECT_ID, { do_reset: true });
-      setResetMessage({ type: "success", text: "Reset complete." });
+      await resetProject(projectId);
+      setResetMessage({ type: "success", text: "Project data deleted." });
       setProcessMessage(null);
       setIndexMessage(null);
     } catch (err) {
@@ -107,6 +104,21 @@ export function LearningBooksAdminPage() {
         </p>
       </div>
 
+      <Card title="Configuration">
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-text-secondary">
+            Target Project ID:
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={projectId}
+            onChange={(e) => setProjectId(parseInt(e.target.value) || 0)}
+            className="w-20 px-3 py-2 bg-bg-primary border border-border rounded-lg text-text-primary focus:outline-none focus:border-primary-500"
+          />
+        </div>
+      </Card>
+
       <Card
         title="Actions"
         subtitle="Process uploaded files, then index for search and chat."
@@ -138,15 +150,14 @@ export function LearningBooksAdminPage() {
             </Button>
             {processMessage && (
               <span
-                className={`inline-flex items-center gap-1.5 text-sm ${
-                  processMessage.type === "success" ?
-                    "text-success"
+                className={`inline-flex items-center gap-1.5 text-sm ${processMessage.type === "success" ?
+                  "text-success"
                   : "text-error"
-                }`}
+                  }`}
               >
                 {processMessage.type === "success" ?
                   <CheckCircleIcon className="w-4 h-4" />
-                : <XCircleIcon className="w-4 h-4" />}
+                  : <XCircleIcon className="w-4 h-4" />}
                 {processMessage.text}
               </span>
             )}
@@ -178,15 +189,14 @@ export function LearningBooksAdminPage() {
             </Button>
             {indexMessage && (
               <span
-                className={`inline-flex items-center gap-1.5 text-sm ${
-                  indexMessage.type === "success" ?
-                    "text-success"
+                className={`inline-flex items-center gap-1.5 text-sm ${indexMessage.type === "success" ?
+                  "text-success"
                   : "text-error"
-                }`}
+                  }`}
               >
                 {indexMessage.type === "success" ?
                   <CheckCircleIcon className="w-4 h-4" />
-                : <XCircleIcon className="w-4 h-4" />}
+                  : <XCircleIcon className="w-4 h-4" />}
                 {indexMessage.text}
               </span>
             )}
@@ -207,21 +217,20 @@ export function LearningBooksAdminPage() {
             </span>
             {resetMessage && (
               <span
-                className={`inline-flex items-center gap-1.5 text-sm ${
-                  resetMessage.type === "success" ?
-                    "text-success"
+                className={`inline-flex items-center gap-1.5 text-sm ${resetMessage.type === "success" ?
+                  "text-success"
                   : "text-error"
-                }`}
+                  }`}
               >
                 {resetMessage.type === "success" ?
                   <CheckCircleIcon className="w-4 h-4" />
-                : <XCircleIcon className="w-4 h-4" />}
+                  : <XCircleIcon className="w-4 h-4" />}
                 {resetMessage.text}
               </span>
             )}
           </div>
         </div>
       </Card>
-    </div>
+    </div >
   );
 }

@@ -47,8 +47,6 @@ class settings (BaseSettings):
     DEFUALT_LANGUAGE : str = "en"
     PRIMARY_LANGUAGE : str = "en"
 
-    # Learning books corpus: fixed project ID reserved for AI/Data Science references (maths, statistics, coding, ml, dl, genai, system_design)
-    LEARNING_BOOKS_PROJECT_ID : int = 10
 
     # Chunking defaults for learning books (large references)
     LEARNING_BOOKS_CHUNK_SIZE : int = 2000
