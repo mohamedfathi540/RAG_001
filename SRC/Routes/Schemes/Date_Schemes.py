@@ -7,6 +7,7 @@ class ProcessRequest (BaseModel) :
 
 class ScrapeRequest (BaseModel) :
     base_url : str
+    library_name : str  # Unique name for the library/project
     Do_reset : Optional[int] = 0
 
 

@@ -138,7 +138,13 @@ async def search_index(request :Request , search_request : SearchRequest) :
     
     project_model = await projectModel.create_instance(db_client=request.app.db_client)
     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
-    project = await project_model.get_project_or_create_one(project_id=default_project_id)
+
+    # Determine which project to use
+    if search_request.project_name:
+         project = await project_model.get_project_or_create_one(project_name=search_request.project_name)
+    else:
+         project = await project_model.get_project_or_create_one(project_id=default_project_id)
+    
     
     if not project :
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND,
@@ -174,7 +180,12 @@ async def answer_index(request :Request , search_request : SearchRequest) :
     
     project_model = await projectModel.create_instance(db_client=request.app.db_client)
     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
-    project = await project_model.get_project_or_create_one(project_id=default_project_id)
+
+    # Determine which project to use
+    if search_request.project_name:
+         project = await project_model.get_project_or_create_one(project_name=search_request.project_name)
+    else:
+         project = await project_model.get_project_or_create_one(project_id=default_project_id)
     
     if not project :
         return JSONResponse(status_code=status.HTTP_404_NOT_FOUND,
@@ -192,7 +203,7 @@ async def answer_index(request :Request , search_request : SearchRequest) :
 
     if not answer :
         return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
-                            content={"Signal" : ResponseSignal.ANSWER_INDEX_ERROR.value}
+                            content={"Signal" : ResponseSignal.ANSWER_INDEX_ERROR.value, "Message": "No relevant documents found in the index. Please ensure the project is fully indexed."}
                             )
 
     return JSONResponse(

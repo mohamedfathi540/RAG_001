@@ -1,5 +1,5 @@
 import { apiClient, uploadFileWithProgress } from './client';
-import type { UploadResponse, ProcessRequest, ProcessResponse, ScrapeRequest, ScrapeResponse } from './types';
+import type { UploadResponse, ProcessRequest, ProcessResponse, ScrapeRequest, ScrapeResponse, LibrariesResponse } from './types';
 
 export const uploadFile = async (
     file: File,
@@ -57,4 +57,9 @@ export const processScrapeCache = async (base_url: string): Promise<ScrapeRespon
 
 export const resetProject = async (): Promise<void> => {
     await apiClient.delete(`/data/assets`);
+};
+
+export const getLibraries = async (): Promise<LibrariesResponse> => {
+    const response = await apiClient.get<LibrariesResponse>(`/data/libraries`);
+    return response.data;
 };

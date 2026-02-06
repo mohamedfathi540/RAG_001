@@ -85,7 +85,8 @@ echo -e "${GREEN}Migrations complete!${NC}"
 
 # 3. Backend API
 echo -e "${BLUE}[3/4] Starting Backend API (Port 8000)...${NC}"
-(cd SRC && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload) > logs/backend.log 2>&1 &
+# Explicitly pass .env file to uvicorn to ensure it's loaded
+(cd SRC && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --env-file .env --reload) > logs/backend.log 2>&1 &
 CHILD_PIDS+=($!)
 
 # Wait a moment for backend to start
@@ -93,8 +94,17 @@ sleep 2
 
 # 4. Frontend
 echo -e "${BLUE}[4/4] Starting Frontend (Port 5173)...${NC}"
-(cd frontend && pnpm run dev) > logs/frontend.log 2>&1 &
-CHILD_PIDS+=($!)
+if command -v pnpm &> /dev/null; then
+    (cd frontend && pnpm run dev) > logs/frontend.log 2>&1 &
+    CHILD_PIDS+=($!)
+elif command -v npm &> /dev/null; then
+    echo -e "${YELLOW}pnpm not found, trying npm...${NC}"
+    (cd frontend && npm run dev) > logs/frontend.log 2>&1 &
+    CHILD_PIDS+=($!)
+else
+    echo -e "${RED}Error: Neither pnpm nor npm found. Frontend will not start.${NC}"
+    echo -e "${YELLOW}Please install Node.js and pnpm to run the frontend.${NC}"
+fi
 
 echo ""
 echo -e "${GREEN}================================================${NC}"

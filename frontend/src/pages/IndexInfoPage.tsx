@@ -19,7 +19,6 @@ export function IndexInfoPage() {
   const vectorsCount =
     collectionInfo?.vectors_count ??
     collectionInfo?.points_count ??
-    collectionInfo?.record_count ??
     null;
 
   return (
@@ -62,7 +61,7 @@ export function IndexInfoPage() {
           <div className="text-4xl font-bold text-primary-400">
             {typeof vectorsCount === "number" ?
               vectorsCount.toLocaleString()
-            : "-"}
+              : "-"}
           </div>
         </Card>
 
@@ -75,7 +74,7 @@ export function IndexInfoPage() {
           <p className="text-error mt-2">
             {error instanceof Error ?
               error.message
-            : "Failed to fetch index info"}
+              : "Failed to fetch index info"}
           </p>
         </Card>
       )}

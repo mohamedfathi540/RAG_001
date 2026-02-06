@@ -15,7 +15,6 @@ class settings (BaseSettings):
 
     APP_NAME: str 
     APP_VERSION: str
-    OPENAI_API_KEY: str
 
     FILE_ALLOWED_TYPES :list
     FILE_MAX_SIZE :int
@@ -31,9 +30,9 @@ class settings (BaseSettings):
     GENRATION_BACKEND : str
     EMBEDDING_BACKEND : str
  
-    OPENAI_API_KEY : str = None
-    OPENAI_BASE_URL : str = None
-    COHERE_API_KEY : str = None
+    OPENAI_API_KEY : Optional[str] = None
+    OPENAI_BASE_URL : Optional[str] = None
+    COHERE_API_KEY : Optional[str] = None
     GEMINI_API_KEY : str = None
     GEMINI_API_VERSION : str = "v1"
 

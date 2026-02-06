@@ -98,6 +98,24 @@ data_router = APIRouter(
 
 )
 
+@data_router.get("/libraries")
+async def get_libraries(request: Request):
+    """List all available libraries (projects)."""
+    project_model = await projectModel.create_instance(db_client=request.app.db_client)
+    # Get all projects - assuming a reasonable number, or we can paginate if needed.
+    # For now fetching first 100 which should correspond to "libraries"
+    projects, _ = await project_model.get_all_projects(page=1, page_size=100)
+    
+    return JSONResponse(
+        content={
+            "signal": ResponseSignal.SUCCESS.value if hasattr(ResponseSignal, 'SUCCESS') else "success",
+            "libraries": [
+                {"id": p.project_id, "name": p.project_name} 
+                for p in projects
+            ]
+        }
+    )
+
 @data_router.post("/upload")
 async def upload_data (request :Request, file : UploadFile ,
                        app_settings : settings = Depends(get_settings))  :
@@ -400,9 +418,19 @@ async def process_endpoint (request :Request ,process_request : ProcessRequest) 
                     for i,chunk in enumerate(file_chunks)
         ]
 
-        no_records += await chunk_model.insert_many_chunks(chunks = file_chunks_records)
+        # Insert chunks and get their IDs
+        inserted_chunk_ids = await chunk_model.insert_many_chunks_returning_ids(chunks = file_chunks_records)
+        no_records += len(inserted_chunk_ids)
         no_files += 1
-
+        
+        # Trigger Embedding
+        if inserted_chunk_ids:
+             await nlp_controller.index_into_vector_db(
+                project=project,
+                chunks=file_chunks_records,
+                chunks_ids=inserted_chunk_ids,
+                do_reset=False
+             )
 
     return JSONResponse(
            content={
@@ -440,19 +468,34 @@ async def scrape_cancel(request: Request):
 async def scrape_documentation(request: Request, scrape_request: ScrapeRequest):
     """Scrape library documentation from a base URL."""
     settings = get_settings()
-    default_project_id = settings.DEFAULT_PROJECT_ID
     
+    # Use library_name to get/create project. 
+    # If not provided (legacy?), we could fallback to default, but requirements imply unique ID per library.
+    # We will assume library_name is required by the updated schema.
+    library_name = scrape_request.library_name
+    if not library_name:
+         return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"signal": "LIBRARY_NAME_REQUIRED", "message": "Library Name is required"}
+        )
+
     project_model = await projectModel.create_instance(db_client=request.app.db_client)
-    project = await project_model.get_project_or_create_one(project_id=default_project_id)
-    
-    if not project:
+    try:
+        project = await project_model.get_project_or_create_one(project_name=library_name)
+    except Exception as e:
+        logger.error(f"Failed to get/create project: {e}")
         return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"signal": ResponseSignal.PROJECT_NOT_FOUND.value}
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"signal": "PROJECT_CREATION_ERROR", "message": str(e)}
         )
     
+    # default_project_id = settings.DEFAULT_PROJECT_ID # No longer used for scraping
+    
+    # Log the project ID being used
+    logger.info(f"[SCRAPE] Starting scrape for library '{library_name}' (Project ID: {project.project_id})")
+
     scraping_controller = ScrapingController()
-    process_controller = processcontroller(project_id=default_project_id)
+    process_controller = processcontroller(project_id=project.project_id)
     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
 

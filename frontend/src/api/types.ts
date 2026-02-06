@@ -7,7 +7,18 @@ export interface ProcessRequest {
 
 export interface ScrapeRequest {
     base_url: string;
+    library_name: string;
     Do_reset: number;
+}
+
+export interface Library {
+    id: number;
+    name: string;
+}
+
+export interface LibrariesResponse {
+    signal: string;
+    libraries: Library[];
 }
 
 export interface ScrapeResponse {
@@ -24,6 +35,7 @@ export interface PushRequest {
 export interface SearchRequest {
     text: string;
     limit: number;
+    project_name?: string;
 }
 
 // Response Types

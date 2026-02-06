@@ -9,4 +9,5 @@ class PushRequest (BaseModel) :
 class SearchRequest (BaseModel) :
 
     text : str
+    project_name : Optional[str] = None
     limit : Optional[int] = 5
