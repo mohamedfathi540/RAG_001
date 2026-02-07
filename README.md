@@ -7,7 +7,7 @@ A Retrieval-Augmented Generation (RAG) system for document-based question answer
 - **Modern React Frontend**: Accessible SPA built with React 18, TypeScript, and React Aria Components
 - **Learning Assistant**: Dedicated AI assistant for AI/Data Science references corpus
 - **Multi-format Document Support**: PDF, TXT, Markdown, JSON, CSV, DOCX
-- **Multiple LLM Providers**: OpenAI, Google Gemini, Cohere, Ollama (local)
+- **Multiple LLM Providers**: OpenAI, Google Gemini, Cohere, HuggingFace, Ollama (local)
 - **Vector Database Options**: PostgreSQL with pgvector, Qdrant
 - **RESTful API**: FastAPI backend with OpenAPI documentation
 - **Monitoring**: Prometheus metrics and Grafana dashboards
@@ -39,7 +39,7 @@ flowchart TB
     end
 
     subgraph External["External Services"]
-        LLM[LLM Providers<br/>OpenAI/Gemini/Cohere]
+        LLM[LLM Providers<br/>OpenAI/Gemini/Cohere/HuggingFace]
         Embeddings[Embedding Service]
     end
 
@@ -70,64 +70,40 @@ flowchart TB
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
 - Docker and Docker Compose (for containerized deployment)
 
-### Local Development
+### One-Command Startup (Recommended)
 
-#### 1. Clone the repository
+The easiest way to run the full stack (Database, Backend, Frontend) is using the helper script:
 
 ```bash
+# 1. Clone
 git clone <repository-url>
 cd fehres
-```
 
-#### 2. Set up Backend
-
-```bash
+# 2. Configure
 cd SRC
 cp .env.example .env
-# Edit .env with your API keys and database credentials
+# Edit .env with your API keys!
+
+# 3. Run
+cd ..
+./dev.sh
 ```
 
-Install dependencies:
+This script will:
+1. Start PostgreSQL & Qdrant in Docker
+2. Run database migrations
+3. Start the FastAPI backend (port 8000)
+4. Start the React frontend (port 5173)
 
-```bash
-uv sync
-# or: pip install -r requirements.txt
-# For documentation scraping (JS-rendered sites): run once from SRC/
-uv run playwright install chromium
-```
+### Manual Setup (Alternative)
 
-Run database migrations:
+If you prefer to run services individually:
 
-```bash
-uv run python -m alembic upgrade head
-```
-
-Start the server:
-
-```bash
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-#### 3. Set up Frontend (Optional - for React UI)
-
-```bash
-cd frontend
-pnpm install
-pnpm run dev
-```
-
-The React frontend will be available at `http://localhost:5173`.
-
-#### 4. Access the Services
-
-- **React Frontend**: http://localhost:5173
-- **API Documentation**: http://localhost:8000/docs
-
-### Docker Deployment
+#### 1. Databases
 
 ```bash
 cd Docker
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 Services will be available at:
@@ -138,6 +114,32 @@ Services will be available at:
 - **Prometheus**: http://localhost:9090
 
 See [Docker/README.md](Docker/README.md) for detailed Docker configuration.
+
+#### 2. Backend
+
+```bash
+cd SRC
+# Install dependencies
+uv sync
+# Or: pip install -r requirements.txt
+
+# Install Playwright browsers (for scraping)
+uv run playwright install chromium
+
+# Run migrations
+uv run python -m alembic upgrade head
+
+# Start API
+uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### 3. Frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm run dev
+```
 
 ## Usage
 
@@ -192,13 +194,15 @@ fehres/
 
 Key environment variables (see `.env.example` for full list):
 
-| Variable            | Description                                   |
-| ------------------- | --------------------------------------------- |
-| `GENRATION_BACKEND` | LLM provider: `OPENAI`, `GEMINI`, `COHERE`, or `OLLAMA` |
-| `EMBEDDING_BACKEND` | Embedding provider                            |
-| `VECTORDB_BACKEND`  | Vector DB: `PGVECTOR` or `QDRANT`             |
-| `POSTGRES_*`        | PostgreSQL connection settings                |
-| `*_API_KEY`         | API keys for LLM providers                    |
+| Variable | Description |
+| --- | --- |
+| `GENRATION_BACKEND` | LLM provider: `OPENAI`, `GEMINI`, `COHERE`, `HUGGINGFACE`, or `OLLAMA` |
+| `EMBEDDING_BACKEND` | Embedding provider |
+| `VECTORDB_BACKEND` | Vector DB: `PGVECTOR` or `QDRANT` |
+| `POSTGRES_*` | PostgreSQL connection settings |
+| `*_API_KEY` | API keys for LLM providers |
+| `SCRAPING_USE_BROWSER` | Set to `1` to use Playwright (slower, better quality), `0` for requests |
+| `SCRAPING_CONCURRENCY` | Number of concurrent pages to scrape (if browser disabled) |
 
 ## Local Ollama Models
 
