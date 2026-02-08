@@ -24,3 +24,11 @@ export const processFiles = async (
     );
     return response.data;
 };
+
+export const resetProject = async (
+    projectId: number
+): Promise<void> => {
+    await apiClient.delete(
+        `/data/project/${projectId}/assets`
+    );
+};
