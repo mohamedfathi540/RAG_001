@@ -57,4 +57,4 @@ echo -e "${GREEN}Frontend:${NC} http://localhost:5173"
 echo -e "${GREEN}Backend:${NC}  http://localhost:8000/docs"
 echo -e "${GREEN}Grafana:${NC}  http://localhost:3000"
 
-docker compose -f Docker/docker-compose.yml logs -f
+docker compose -f Docker/docker-compose.yml logs -f | grep --line-buffered -v "GET /kfgndfkk4464_fubfd555"
