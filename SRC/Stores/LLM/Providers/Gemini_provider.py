@@ -96,11 +96,25 @@ class GeminiProvider(LLMInterface):
                 return response.text
                 
             except Exception as e:
+                import re
                 is_rate_limit = "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "503" in str(e) or "UNAVAILABLE" in str(e)
+                
                 if is_rate_limit:
                     if attempt < retries:
-                        wait_time = 4 * (2 ** attempt) # 4, 8, 16 
-                        self.logger.warning(f"Gemini rate limit hit. Retrying in {wait_time}s...")
+                        # Try to extract wait time from error message
+                        wait_time = 4 * (2 ** attempt) # Default backoff
+                        
+                        # Look for "Please retry in X" pattern
+                        retry_match = re.search(r"retry in (\d+(?:\.\d+)?)s", str(e), re.IGNORECASE)
+                        if retry_match:
+                            try:
+                                parsed_wait = float(retry_match.group(1))
+                                # Add a small buffer and cap it at 60s to avoid hanging too long
+                                wait_time = min(parsed_wait + 1, 60)
+                            except ValueError:
+                                pass
+                        
+                        self.logger.warning(f"Gemini rate limit hit. Retrying in {wait_time:.2f}s...")
                         time.sleep(wait_time)
                         continue
                     else:
@@ -144,11 +158,25 @@ class GeminiProvider(LLMInterface):
                 
                 
             except Exception as e:
+                import re
                 is_rate_limit = "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e) or "503" in str(e) or "UNAVAILABLE" in str(e)
+                
                 if is_rate_limit:
                     if attempt < retries:
-                        wait_time = 4 * (2 ** attempt) # 4, 8, 16
-                        self.logger.warning(f"Gemini rate limit hit (Embedding). Retrying in {wait_time}s...")
+                        # Try to extract wait time from error message
+                        wait_time = 4 * (2 ** attempt) # Default backoff
+                        
+                        # Look for "Please retry in X" pattern
+                        retry_match = re.search(r"retry in (\d+(?:\.\d+)?)s", str(e), re.IGNORECASE)
+                        if retry_match:
+                            try:
+                                parsed_wait = float(retry_match.group(1))
+                                # Add a small buffer and cap it at 60s
+                                wait_time = min(parsed_wait + 1, 60)
+                            except ValueError:
+                                pass
+                                
+                        self.logger.warning(f"Gemini rate limit hit (Embedding). Retrying in {wait_time:.2f}s...")
                         time.sleep(wait_time)
                         continue
                     else:

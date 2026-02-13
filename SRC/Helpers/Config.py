@@ -5,7 +5,6 @@ class settings (BaseSettings):
 
     APP_NAME: str 
     APP_VERSION: str
-    OPENAI_API_KEY: str
 
     FILE_ALLOWED_TYPES :list
     FILE_MAX_SIZE :int
@@ -25,12 +24,9 @@ class settings (BaseSettings):
     OPENAI_BASE_URL : Optional[str] = None
     COHERE_API_KEY : Optional[str] = None
     GEMINI_API_KEY : Optional[str] = None
-<<<<<<< HEAD
-    LLAMA_CLOUD_API_KEY : Optional[str] = None
-=======
     GEMINI_API_VERSION : str = "v1"
+    LLAMA_CLOUD_API_KEY : Optional[str] = None
     OLLAMA_BASE_URL : Optional[str] = None
->>>>>>> d49b326 (-Add Hugging Face as a new LLM provider for text generation and embeddings)
     HUGGINGFACE_API_KEY : Optional[str] = None
 
     GENRATION_MODEL_ID_LITERAL : Optional[List[str]] = None
