@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import shutil
 
@@ -25,7 +26,7 @@ def write_env(file_path, env_vars, source_path=None):
     # We want local dev to use localhost, while docker uses service names
     PROTECTED_KEYS = {
         "POSTGRES_HOST": '"localhost"',
-        "POSTGRES_PORT": '"5433"',
+        "POSTGRES_PORT": '"5434"',
     }
 
     if source_path and os.path.exists(source_path):

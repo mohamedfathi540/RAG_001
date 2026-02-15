@@ -16,9 +16,8 @@ NC='\033[0m' # No Color
 cleanup() {
     echo ""
     echo -e "${YELLOW}================================================${NC}"
-    echo -e "${YELLOW}       Shutting down services...${NC}"
     echo -e "${YELLOW}================================================${NC}"
-    docker compose -f Docker/docker-compose.yml down
+    $DOCKER_CMD compose -f Docker/docker-compose.yml down
     echo -e "${GREEN}All services stopped.${NC}"
     exit 0
 }
@@ -28,6 +27,17 @@ trap cleanup SIGINT SIGTERM EXIT
 echo -e "${GREEN}================================================${NC}"
 echo -e "${GREEN}       Starting Fehres (Full Docker)${NC}"
 echo -e "${GREEN}================================================${NC}"
+
+# Detect Docker command
+if command -v docker &> /dev/null; then
+    DOCKER_CMD="docker"
+elif command -v docker.exe &> /dev/null; then
+    DOCKER_CMD="docker.exe"
+else
+    echo -e "${RED}Error: Docker not found. Please install Docker or ensure it is in your PATH.${NC}"
+    exit 1
+fi
+echo -e "${BLUE}Using Docker command: $DOCKER_CMD${NC}"
 
 # Parse arguments
 BUILD_FLAG=""
@@ -63,10 +73,10 @@ fi
 
 if [ -n "$SERVICES" ]; then
     echo -e "${YELLOW}Starting specific services: $SERVICES${NC}"
-    COMPOSE_CMD="docker compose -f Docker/docker-compose.yml up -d $BUILD_FLAG $SERVICES"
+    COMPOSE_CMD="$DOCKER_CMD compose -f Docker/docker-compose.yml up -d $BUILD_FLAG $SERVICES"
 else
     echo -e "${YELLOW}Starting all services...${NC}"
-    COMPOSE_CMD="docker compose -f Docker/docker-compose.yml up -d $BUILD_FLAG"
+    COMPOSE_CMD="$DOCKER_CMD compose -f Docker/docker-compose.yml up -d $BUILD_FLAG"
 fi
 
 eval $COMPOSE_CMD
@@ -79,7 +89,7 @@ echo -e "${GREEN}Grafana:${NC}  http://localhost:3000"
 
 # Only tail logs if we started everything, or correct logs if specific services
 if [ -n "$SERVICES" ]; then
-     docker compose -f Docker/docker-compose.yml logs -f $SERVICES
+     $DOCKER_CMD compose -f Docker/docker-compose.yml logs -f $SERVICES
 else
-     docker compose -f Docker/docker-compose.yml logs -f | grep --line-buffered -v "GET /kfgndfkk4464_fubfd555"
+     $DOCKER_CMD compose -f Docker/docker-compose.yml logs -f | grep --line-buffered -v "GET /kfgndfkk4464_fubfd555"
 fi
