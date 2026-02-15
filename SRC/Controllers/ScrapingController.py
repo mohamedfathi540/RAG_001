@@ -43,6 +43,20 @@ class ScrapingController(basecontroller):
         except Exception as e:
             logger.warning(f"Could not parse robots.txt for {base_url}: {e}")
             return None
+
+    def verify_url_accessible(self, url: str) -> bool:
+        """Check if the URL is accessible (returns 200-299 status code)."""
+        try:
+            response = self.session.head(url, timeout=5, allow_redirects=True)
+            if 200 <= response.status_code < 300:
+                return True
+            # Fallback to GET if HEAD fails (some servers block HEAD)
+            response = self.session.get(url, timeout=5, stream=True)
+            response.close()
+            return 200 <= response.status_code < 300
+        except Exception as e:
+            logger.warning(f"URL verification failed for {url}: {e}")
+            return False
     
     def _can_fetch(self, robots_parser: Optional[RobotFileParser], url: str) -> bool:
         """Check if URL can be fetched according to robots.txt."""
@@ -74,10 +88,22 @@ class ScrapingController(basecontroller):
         if base_url.endswith(".xml"):
             sitemap_urls = [base_url]
         else:
+            # Try standard sitemap locations
             sitemap_urls = [
+                urljoin(base_url, 'sitemap.xml'),
+                urljoin(base_url, 'sitemap_index.xml'),
                 urljoin(base_url, '/sitemap.xml'),
                 urljoin(base_url, '/sitemap_index.xml'),
             ]
+            
+            # Check if robots.txt has specific sitemap
+            robots_parser = self._check_robots_txt(base_url)
+            if robots_parser and robots_parser.site_maps():
+                sitemap_urls.extend(robots_parser.site_maps())
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            sitemap_urls = [x for x in sitemap_urls if not (x in seen or seen.add(x))]
         
         for sitemap_url in sitemap_urls:
             if sitemap_url in visited_sitemaps:
