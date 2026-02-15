@@ -26,6 +26,9 @@ class HuggingFaceProvider(LLMInterface):
             self.client = InferenceClient(token=self.api_key)
         else:
             self.client = None
+            
+        # Initialize local embedding client holder
+        self.local_embedding_client = None
 
         self.enums = HuggingFaceEnum
         self.logger = logging.getLogger('uvicorn')
@@ -36,6 +39,20 @@ class HuggingFaceProvider(LLMInterface):
     def set_embedding_model(self, model_id: str, embedding_size: int):
         self.embedding_model_id = model_id
         self.embedding_size = embedding_size
+        
+        # Initialize the local embedding model here
+        # This will download the model if not present (handled by sentence-transformers)
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+            self.logger.info(f"Initializing local HuggingFace embeddings with model: {model_id}")
+            self.local_embedding_client = HuggingFaceEmbeddings(
+                model_name=model_id,
+                # multi_process=False, # Optional: explicit if needed
+                # show_progress=False # Optional
+            )
+        except Exception as e:
+             self.logger.error(f"Failed to initialize local HuggingFaceEmbeddings: {e}")
+             self.local_embedding_client = None
 
     def process_text(self, text: str):
         return text[:self.default_input_max_characters].strip()
@@ -93,55 +110,33 @@ class HuggingFaceProvider(LLMInterface):
                 return None
 
     def embed_text(self, text: Union[str, List[str]], document_type: str = None):
-        if not self.client:
-            raise Exception("HuggingFace client is not initialized")
+        # Use local embedding client instead of remote API
+        if not self.local_embedding_client:
+             if not self.embedding_model_id:
+                  raise Exception("HuggingFace embedding model is not initialized or failed to load")
+             # Try re-initializing if it failed or wasn't set yet (though set_embedding_model should have covered it)
+             self.set_embedding_model(self.embedding_model_id, self.embedding_size)
+             if not self.local_embedding_client:
+                 raise Exception("HuggingFace local embedding client could not be initialized")
 
-        if isinstance(text, str):
-            text = [text]
+        try:
+            if isinstance(text, str):
+                # Single string -> single embedding
+                # embed_query returns a List[float]
+                return [self.local_embedding_client.embed_query(text)]
+            
+            elif isinstance(text, list):
+                # List of strings -> list of embeddings
+                # embed_documents returns a List[List[float]]
+                return self.local_embedding_client.embed_documents(text)
+            
+            else:
+                raise ValueError(f"Unsupported input type for embedding: {type(text)}")
 
-        if not self.embedding_model_id:
-            raise Exception("HuggingFace embedding model is not initialized")
-
-        retries = 3
-        for attempt in range(retries + 1):
-            try:
-                # HuggingFace feature extraction for embeddings
-                embeddings = []
-                for t in text:
-                    result = self.client.feature_extraction(
-                        text=t,
-                        model=self.embedding_model_id
-                    )
-                    # Result is typically a list of floats or nested structure
-                    if isinstance(result, list):
-                        # If nested (e.g., [[...]], take first element to get embedding vector
-                        if len(result) > 0 and isinstance(result[0], list):
-                            # Average pooling for sequence output
-                            embedding = np.mean(result, axis=0).tolist()
-                        else:
-                            embedding = result
-                        embeddings.append(embedding)
-                    else:
-                        embeddings.append(list(result))
-
-                return embeddings
-
-            except Exception as e:
-                is_rate_limit = "429" in str(e) or "rate" in str(e).lower()
-                if is_rate_limit:
-                    if attempt < retries:
-                        wait_time = 4 * (2 ** attempt)  # 4, 8, 16
-                        self.logger.warning(f"HuggingFace rate limit hit (Embedding). Retrying in {wait_time}s...")
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        error_msg = f"HuggingFace embedding rate limit exhausted after {retries} retries: {e}"
-                        self.logger.error(error_msg)
-                        raise Exception(error_msg)
-                else:
-                    error_msg = f"Error calling HuggingFace Embedding API: {e}"
-                    self.logger.error(error_msg)
-                    raise Exception(error_msg)
+        except Exception as e:
+            error_msg = f"Error generating local HuggingFace embeddings: {e}"
+            self.logger.error(error_msg)
+            raise Exception(error_msg)
 
     def construct_prompt(self, prompt: str, role: str):
         return {"role": role, "content": prompt}

@@ -52,9 +52,19 @@ class BM25Index:
         chunk_ids = []
         corpus_tokens = []
         for c in chunks:
-            chunk_id = getattr(c, "chunk_id", c[0]) if hasattr(c, "chunk_id") else c[0]
+            # Avoid getattr(..., default=c[0]) because c[0] is evaluated eagerly and raises TypeError if c is not subscriptable
+            if hasattr(c, "chunk_id"):
+                chunk_id = c.chunk_id
+            else:
+                chunk_id = c[0]
+            
             chunk_ids.append(int(chunk_id))
-            text = getattr(c, "chunk_text", c[1]) if hasattr(c, "chunk_text") else c[1]
+
+            if hasattr(c, "chunk_text"):
+                text = c.chunk_text
+            else:
+                text = c[1]
+
             normalized = lemmatize_text(text or "")
             tokens = tokenize(normalized)  # Use tokenize for consistency
             corpus_tokens.append(tokens)
