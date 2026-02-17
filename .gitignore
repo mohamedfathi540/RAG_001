@@ -37,6 +37,24 @@ SRC/Assets/Database/
 # BM25 sparse index persistence (generated at runtime)
 SRC/data/
 
+# Hugging Face & ML model cache
+.cache/
+huggingface/
+.huggingface/
+sentence-transformers/
+*.onnx
+*.safetensors
+*.bin
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Node.js (frontend)
+node_modules/
+frontend/node_modules/
+
 # OS
 .DS_Store
 Thumbs.db
