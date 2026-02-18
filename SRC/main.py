@@ -56,6 +56,10 @@ async def startup_span ():
     app.embedding_client.set_embedding_model(model_id = settings.EMBEDDING_MODEL_ID, 
                                             embedding_size = settings.EMBEDDING_SIZE)
 
+    #OCR Client (for prescription analysis)
+    ocr_backend = getattr(settings, "OCR_BACKEND", "LLAMAPARSE").upper()
+    app.ocr_client = llm_provider_factory.create_ocr(ocr_backend=ocr_backend)
+
     #VectorDB Client
     app.vectordb_client = vectordb_provider_factory.create(provider = settings.VECTORDB_BACKEND)
     await app.vectordb_client.connect()

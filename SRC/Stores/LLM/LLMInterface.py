@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from typing import List, Optional
+
 
 class LLMInterface(ABC):
     
@@ -20,4 +22,15 @@ class LLMInterface(ABC):
 
     @abstractmethod
     def construct_prompt(self, prompt : str ,role : str) :
+        pass
+
+    @abstractmethod
+    def ocr_image(self, image_path: str, prompt: str,
+                  max_output_tokens: int = None,
+                  temperature: float = None) -> Optional[str]:
+        """
+        Process an image with a text prompt (vision capability).
+        Used for OCR / prescription reading.
+        Returns the model's text response, or None if not supported.
+        """
         pass

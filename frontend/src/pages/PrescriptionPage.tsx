@@ -88,10 +88,10 @@ export function PrescriptionPage() {
             {/* Upload Zone */}
             <div
                 className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 cursor-pointer ${isDragging
-                        ? "border-primary-500 bg-primary-500/10"
-                        : previewUrl
-                            ? "border-border bg-bg-secondary"
-                            : "border-border hover:border-primary-600 hover:bg-bg-secondary/50"
+                    ? "border-primary-500 bg-primary-500/10"
+                    : previewUrl
+                        ? "border-border bg-bg-secondary"
+                        : "border-border hover:border-primary-600 hover:bg-bg-secondary/50"
                     }`}
                 onDragOver={(e) => {
                     e.preventDefault();
@@ -221,44 +221,39 @@ export function PrescriptionPage() {
                         {medicines.map((med, idx) => (
                             <div
                                 key={idx}
-                                className="bg-bg-secondary border border-border rounded-xl p-5 flex gap-5 items-start hover:border-primary-600/50 transition-colors"
+                                className="bg-bg-secondary border border-border rounded-xl p-5 hover:border-primary-600/50 transition-colors"
                             >
-                                {/* Medicine Image */}
-                                <div className="shrink-0">
-                                    {med.image_url ? (
-                                        <img
-                                            src={med.image_url}
-                                            alt={med.name}
-                                            className="w-24 h-24 object-cover rounded-lg border border-border shadow-md"
-                                            onError={(e) => {
-                                                (e.target as HTMLImageElement).style.display = "none";
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="w-24 h-24 bg-bg-tertiary rounded-lg flex items-center justify-center text-3xl border border-border">
-                                            💊
-                                        </div>
-                                    )}
-                                </div>
-
                                 {/* Medicine Info */}
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
                                         <h3 className="text-lg font-bold text-text-primary">
                                             <span className="text-primary-400 mr-1.5">
                                                 {idx + 1}.
                                             </span>
                                             {med.name}
                                         </h3>
+                                        <div className="mt-2">
+                                            <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                                                Active Ingredient
+                                            </p>
+                                            <p className="text-text-secondary mt-0.5">
+                                                {med.active_ingredient || "Not found"}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="mt-2">
-                                        <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
-                                            Active Ingredient
-                                        </p>
-                                        <p className="text-text-secondary mt-0.5">
-                                            {med.active_ingredient || "Not found"}
-                                        </p>
-                                    </div>
+
+                                    {/* Google Image Search Link */}
+                                    {med.image_url && (
+                                        <a
+                                            href={med.image_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-primary-600/20 hover:bg-primary-600/30 text-primary-400 rounded-lg border border-primary-600/30 transition-all duration-200 hover:scale-105 text-sm font-medium"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            🔍 View Images
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         ))}

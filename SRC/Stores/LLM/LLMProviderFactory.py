@@ -42,3 +42,35 @@ class LLMProviderFactory :
             )
 
         return None
+
+    def create_ocr(self, ocr_backend: str):
+        """
+        Create an OCR provider based on OCR_BACKEND setting.
+        - LLAMAPARSE: returns None (controller uses LlamaParse directly)
+        - GEMINI: returns a GeminiProvider with vision capabilities
+        - OPENAI: returns an OpenAIProvider with vision capabilities
+        - Others: returns the standard provider (may not support OCR)
+        """
+        ocr_backend = ocr_backend.upper()
+
+        if ocr_backend == "LLAMAPARSE":
+            # LlamaParse is handled separately in the controller
+            return None
+
+        # Create the provider via the standard factory
+        provider = self.create(ocr_backend)
+
+        if provider is None:
+            return None
+
+        # Set the generation model for vision tasks
+        if ocr_backend == LLMEnums.GEMINI.value:
+            provider.set_genration_model("gemini-2.0-flash")
+        elif ocr_backend == LLMEnums.OPENAI.value:
+            model_id = getattr(self.config, "GENRATION_MODEL_ID", None)
+            if model_id:
+                provider.set_genration_model(model_id)
+            else:
+                provider.set_genration_model("gpt-4o")
+
+        return provider

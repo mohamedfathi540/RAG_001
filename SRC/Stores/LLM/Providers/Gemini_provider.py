@@ -189,3 +189,101 @@ class GeminiProvider(LLMInterface):
     def construct_prompt(self, prompt: str, role: str):
         # This is used by the controller to append to history. 
         return {"role": role, "content": prompt}
+
+    def ocr_image(self, image_path: str, prompt: str,
+                  max_output_tokens: int = None,
+                  temperature: float = None):
+        """
+        Use Gemini Vision to process an image with a text prompt.
+        Reads the image file, sends it alongside the prompt, and returns
+        the model's text response.
+        """
+        import os
+
+        if not self.client:
+            self.logger.error("Gemini client is not initialized")
+            return None
+
+        if not self.genration_model_id:
+            self.logger.error("Gemini generation model is not initialized")
+            return None
+
+        max_output_tokens = max_output_tokens or self.default_genrated_max_output_tokens
+        temperature = temperature or self.default_genration_temperature
+
+        # Read image bytes
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+
+        # Detect MIME type
+        ext = os.path.splitext(image_path)[1].lower()
+        mime_map = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+            ".pdf": "application/pdf",
+        }
+        mime_type = mime_map.get(ext, "image/jpeg")
+
+        generation_config = types.GenerateContentConfig(
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+        )
+
+        retries = 3
+        for attempt in range(retries + 1):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.genration_model_id,
+                    contents=[
+                        types.Content(
+                            role="user",
+                            parts=[
+                                types.Part.from_bytes(
+                                    data=image_bytes,
+                                    mime_type=mime_type,
+                                ),
+                                types.Part(text=prompt),
+                            ],
+                        )
+                    ],
+                    config=generation_config,
+                )
+
+                if not response or not response.text:
+                    if attempt < retries:
+                        self.logger.warning("Gemini OCR empty response, retrying...")
+                        continue
+                    return None
+
+                return response.text
+
+            except Exception as e:
+                import re as _re
+                is_rate_limit = (
+                    "429" in str(e)
+                    or "RESOURCE_EXHAUSTED" in str(e)
+                    or "503" in str(e)
+                    or "UNAVAILABLE" in str(e)
+                )
+
+                if is_rate_limit and attempt < retries:
+                    wait_time = 4 * (2 ** attempt)
+                    retry_match = _re.search(
+                        r"retry in (\d+(?:\.\d+)?)s", str(e), _re.IGNORECASE
+                    )
+                    if retry_match:
+                        try:
+                            wait_time = min(float(retry_match.group(1)) + 1, 60)
+                        except ValueError:
+                            pass
+                    self.logger.warning(
+                        f"Gemini OCR rate limit. Retrying in {wait_time:.1f}s..."
+                    )
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    self.logger.error(f"Gemini OCR error: {e}")
+
+                return None

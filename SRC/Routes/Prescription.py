@@ -55,6 +55,7 @@ async def analyze_prescription(request: Request, file: UploadFile):
         result = await controller.analyze_prescription(
             file_path=tmp_file.name,
             genration_client=request.app.genration_client,
+            ocr_client=getattr(request.app, "ocr_client", None),
         )
 
         medicines = result.get("medicines", [])

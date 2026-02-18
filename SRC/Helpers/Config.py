@@ -19,6 +19,7 @@ class settings (BaseSettings):
     
     GENRATION_BACKEND : str
     EMBEDDING_BACKEND : str
+    OCR_BACKEND : str = "LLAMAPARSE"
  
     OPENAI_API_KEY : Optional[str] = None
     OPENAI_BASE_URL : Optional[str] = None
