@@ -20,6 +20,7 @@ class settings (BaseSettings):
     GENRATION_BACKEND : str
     EMBEDDING_BACKEND : str
     OCR_BACKEND : str = "LLAMAPARSE"
+    OCR_MODEL_ID : Optional[str] = "gemini-2.0-flash"
  
     OPENAI_API_KEY : Optional[str] = None
     OPENAI_BASE_URL : Optional[str] = None
@@ -51,6 +52,10 @@ class settings (BaseSettings):
     DOC_CHUNK_SIZE : int = 1000
     DOC_OVERLAP_SIZE : int = 200
     DEFAULT_PROJECT_ID : int = 1
+
+    # Prescription Analyzer chunk parameters
+    PRESCRIPTION_CHUNK_SIZE : int = 300
+    PRESCRIPTION_OVERLAP_SIZE : int = 50
 
     # Web Scraping Configuration
     SCRAPING_MAX_PAGES : int = 1000

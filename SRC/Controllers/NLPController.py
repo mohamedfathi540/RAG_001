@@ -176,3 +176,60 @@ class NLPController (basecontroller) :
         )
 
         return answer, full_prompt ,chat_history
+
+    async def answer_prescription_question(self, project: Project, query: str, limit: int = 5):
+        """
+        Like answer_rag_question but uses the prescription-specific prompt template.
+        This allows the LLM to use its pharmaceutical knowledge alongside the
+        retrieved prescription data.
+        """
+        answer, full_prompt, chat_history = None, None, None
+
+        # Step 1: retrieve related medicine chunks
+        retrieved_documents = await self.search_vector_db_collection(
+            project=project, text=query, limit=limit
+        )
+
+        if not retrieved_documents or len(retrieved_documents) == 0:
+            return answer, full_prompt, chat_history
+
+        # Step 2: construct LLM prompt using prescription-specific template
+        system_prompt = self.template_parser.get("prescription_rag", "system_prompt")
+        doc_lines = []
+        for idx, doc in enumerate(retrieved_documents):
+            chunk_text = self.genration_client.process_text(doc.text)
+            # Include medicine metadata for richer context
+            if getattr(doc, "metadata", None) and isinstance(doc.metadata, dict):
+                parts = []
+                if doc.metadata.get("medicine_name"):
+                    parts.append(f"Medicine: {doc.metadata['medicine_name']}")
+                if doc.metadata.get("active_ingredient"):
+                    parts.append(f"Active Ingredient: {doc.metadata['active_ingredient']}")
+                if parts:
+                    chunk_text = " | ".join(parts) + "\n" + chunk_text
+            doc_lines.append(
+                self.template_parser.get("prescription_rag", "document_prompt", {
+                    "doc_num": idx + 1, "chunk_text": chunk_text
+                })
+            )
+        document_prompt = "\n".join(doc_lines)
+
+        footer_prompt = self.template_parser.get("prescription_rag", "footer_prompt", {
+            "query": query
+        })
+
+        chat_history = [
+            self.genration_client.construct_prompt(
+                prompt=system_prompt,
+                role=self.genration_client.enums.SYSTEM.value
+            )
+        ]
+
+        full_prompt = "\n\n".join([document_prompt, footer_prompt])
+
+        answer = self.genration_client.genrate_text(
+            prompt=full_prompt,
+            chat_history=chat_history
+        )
+
+        return answer, full_prompt, chat_history

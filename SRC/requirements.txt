@@ -39,6 +39,9 @@ llama-parse
 duckduckgo-search
 httpx
 
+# Local OCR engines (no API key needed)
+easyocr
+
 # Web Scraping
 beautifulsoup4>=4.12.0
 requests>=2.31.0
