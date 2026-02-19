@@ -2,30 +2,47 @@ import { useState, useRef, useCallback } from "react";
 import { analyzePrescription } from "../api/prescription";
 import type { MedicineInfo } from "../api/types";
 import { Button } from "../components/ui/Button";
+import { useSettingsStore } from "../stores/settingsStore";
+
+/** Convert a File to a data URL so it survives page switches */
+function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
 
 export function PrescriptionPage() {
+    const { prescriptionResult, setPrescriptionResult } = useSettingsStore();
+
     const [file, setFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(
+        prescriptionResult?.previewDataUrl ?? null
+    );
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [ocrText, setOcrText] = useState<string>("");
-    const [medicines, setMedicines] = useState<MedicineInfo[]>([]);
+    const [ocrText, setOcrText] = useState<string>(
+        prescriptionResult?.ocrText ?? ""
+    );
+    const [medicines, setMedicines] = useState<MedicineInfo[]>(
+        prescriptionResult?.medicines ?? []
+    );
     const [error, setError] = useState<string | null>(null);
     const [showOcr, setShowOcr] = useState(false);
-    const [signal, setSignal] = useState<string>("");
+    const [signal, setSignal] = useState<string>(
+        prescriptionResult?.signal ?? ""
+    );
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    const handleFile = useCallback((f: File) => {
+    const handleFile = useCallback(async (f: File) => {
         setFile(f);
         setError(null);
-        setMedicines([]);
-        setOcrText("");
-        setSignal("");
-
-        // Create preview
-        const url = URL.createObjectURL(f);
-        setPreviewUrl(url);
+        // Don't clear previous results until new analysis is run
+        const dataUrl = await fileToDataUrl(f);
+        setPreviewUrl(dataUrl);
     }, []);
 
     const handleDrop = useCallback(
@@ -49,9 +66,23 @@ export function PrescriptionPage() {
 
         try {
             const result = await analyzePrescription(file, setProgress);
-            setOcrText(result.ocr_text || "");
-            setMedicines(result.medicines || []);
-            setSignal(result.signal || "");
+            const newOcrText = result.ocr_text || "";
+            const newMedicines = result.medicines || [];
+            const newSignal = result.signal || "";
+            const newProjectId = result.project_id ?? null;
+
+            setOcrText(newOcrText);
+            setMedicines(newMedicines);
+            setSignal(newSignal);
+
+            // Persist to store so results survive page switches
+            setPrescriptionResult({
+                ocrText: newOcrText,
+                medicines: newMedicines,
+                signal: newSignal,
+                previewDataUrl: previewUrl,
+                projectId: newProjectId,
+            });
         } catch (err: unknown) {
             const message =
                 err instanceof Error ? err.message : "Analysis failed";
@@ -63,13 +94,13 @@ export function PrescriptionPage() {
 
     const handleReset = () => {
         setFile(null);
-        if (previewUrl) URL.revokeObjectURL(previewUrl);
         setPreviewUrl(null);
         setMedicines([]);
         setOcrText("");
         setError(null);
         setSignal("");
         setShowOcr(false);
+        setPrescriptionResult(null);
     };
 
     return (
@@ -121,10 +152,12 @@ export function PrescriptionPage() {
                         />
                         <div className="flex items-center justify-center gap-3">
                             <p className="text-sm text-text-secondary">
-                                📄 {file?.name}{" "}
-                                <span className="text-text-muted">
-                                    ({((file?.size || 0) / 1024).toFixed(1)} KB)
-                                </span>
+                                📄 {file?.name ?? "Previous prescription"}{" "}
+                                {file && (
+                                    <span className="text-text-muted">
+                                        ({((file.size || 0) / 1024).toFixed(1)} KB)
+                                    </span>
+                                )}
                             </p>
                             <button
                                 onClick={(e) => {
@@ -151,12 +184,13 @@ export function PrescriptionPage() {
             </div>
 
             {/* Analyze Button */}
-            {file && (
+            {(file || (previewUrl && !medicines.length)) && (
                 <div className="flex gap-3">
                     <Button
                         onPress={handleAnalyze}
                         isLoading={isAnalyzing}
                         variant="primary"
+                        isDisabled={!file}
                     >
                         {isAnalyzing
                             ? progress < 100
@@ -182,7 +216,7 @@ export function PrescriptionPage() {
                                 Processing prescription...
                             </p>
                             <p className="text-sm text-text-muted mt-0.5">
-                                Running OCR → Extracting medicines → Searching for info
+                                Running OCR → Extracting medicines → Indexing for chat
                             </p>
                         </div>
                     </div>
@@ -212,9 +246,18 @@ export function PrescriptionPage() {
                         <h2 className="text-lg font-semibold text-text-primary">
                             🏥 Medicines Found ({medicines.length})
                         </h2>
-                        <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">
-                            {signal}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">
+                                {signal}
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onPress={handleReset}
+                            >
+                                New Analysis
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="grid gap-4">
@@ -258,6 +301,17 @@ export function PrescriptionPage() {
                             </div>
                         ))}
                     </div>
+
+                    {/* Tip to use Chat */}
+                    {prescriptionResult?.projectId && (
+                        <div className="bg-primary-600/10 border border-primary-600/30 rounded-xl p-4">
+                            <p className="text-primary-400 font-medium">💬 Chat Available</p>
+                            <p className="text-primary-300/80 text-sm mt-1">
+                                Go to the <strong>Chat</strong> page to ask questions about these
+                                medicines — find replacements, check interactions, and more.
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
 

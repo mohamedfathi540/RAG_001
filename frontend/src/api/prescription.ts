@@ -1,4 +1,4 @@
-import type { PrescriptionResponse } from './types';
+import type { PrescriptionResponse, PrescriptionChatRequest, PrescriptionChatResponse } from './types';
 import { useSettingsStore } from '../stores/settingsStore';
 import axios from 'axios';
 
@@ -27,6 +27,18 @@ export const analyzePrescription = async (
             },
             timeout: 180000, // 3 minutes — OCR + search takes time
         }
+    );
+    return response.data;
+};
+
+export const chatAboutPrescription = async (
+    request: PrescriptionChatRequest
+): Promise<PrescriptionChatResponse> => {
+    const { apiUrl } = useSettingsStore.getState();
+    const response = await axios.post<PrescriptionChatResponse>(
+        `${apiUrl}/prescription/chat`,
+        request,
+        { timeout: 60000 }
     );
     return response.data;
 };

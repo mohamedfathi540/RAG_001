@@ -99,6 +99,20 @@ export interface PrescriptionResponse {
     signal: string;
     ocr_text: string;
     medicines: MedicineInfo[];
+    project_id: number | null;
+}
+
+export interface PrescriptionChatRequest {
+    text: string;
+    limit: number;
+    project_id: number;
+}
+
+export interface PrescriptionChatResponse {
+    Signal: string;
+    Answer: string;
+    FullPrompt: string;
+    ChatHistory: unknown[];
 }
 
 // Upload Types

@@ -1,22 +1,36 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { PaperAirplaneIcon } from "@heroicons/react/24/outline";
+import ReactMarkdown from "react-markdown";
 import { useSettingsStore } from "../stores/settingsStore";
-import { getAnswer } from "../api/nlp";
+import { chatAboutPrescription } from "../api/prescription";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { generateId, formatDate } from "../utils/helpers";
 import type { ChatMessage } from "../api/types";
 
 export function ChatPage() {
-  const { projectId, chatHistory, addMessage, clearHistory } =
+  const { prescriptionResult, chatHistory, addMessage, clearHistory } =
     useSettingsStore();
   const [question, setQuestion] = useState("");
-  const [contextLimit, setContextLimit] = useState(5);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const projectId = prescriptionResult?.projectId ?? null;
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory]);
 
   const answerMutation = useMutation({
-    mutationFn: (text: string) =>
-      getAnswer(projectId, { text, limit: contextLimit }),
+    mutationFn: (text: string) => {
+      if (!projectId) throw new Error("No prescription analyzed yet");
+      return chatAboutPrescription({
+        text,
+        limit: 5,
+        project_id: projectId,
+      });
+    },
     onSuccess: (data) => {
       const assistantMessage: ChatMessage = {
         id: generateId(),
@@ -43,7 +57,7 @@ export function ChatPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!question.trim() || answerMutation.isPending) return;
+    if (!question.trim() || answerMutation.isPending || !projectId) return;
 
     const userMessage: ChatMessage = {
       id: generateId(),
@@ -57,112 +71,137 @@ export function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col" style={{ height: "calc(100vh - 3rem)" }}>
       {/* Header */}
-      <div className="mb-6">
+      <div className="shrink-0 mb-4">
         <h2 className="text-2xl font-semibold text-text-primary tracking-tight">
-          Chat
+          💬 Prescription Chat
         </h2>
         <p className="text-sm text-text-secondary mt-1">
-          Ask questions about your indexed documents
+          Ask questions about your prescription — find replacements, check
+          interactions, and more
         </p>
       </div>
 
-      {/* Chat Container */}
-      <Card className="flex-1 flex flex-col overflow-hidden">
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {chatHistory.length === 0 ?
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-lg mb-2 text-text-primary">
-                  Welcome to Fehres Chat
-                </p>
-                <p className="text-sm text-text-secondary">
-                  Ask questions about your documents to get AI-generated answers
-                </p>
-              </div>
-            </div>
-          : chatHistory.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    message.role === "user" ?
-                      "bg-primary-600 text-white rounded-br-none"
-                    : "bg-bg-tertiary text-text-primary border border-border rounded-bl-none"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                  <span className="text-xs opacity-70 mt-2 block">
-                    {formatDate(message.timestamp)}
-                  </span>
-                </div>
-              </div>
-            ))
-          }
-          {answerMutation.isPending && (
-            <div className="flex justify-start">
-              <div className="bg-bg-tertiary border border-border rounded-2xl rounded-bl-none px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce delay-100" />
-                  <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce delay-200" />
-                </div>
-              </div>
+      {/* No Prescription Prompt */}
+      {!projectId ? (
+        <Card className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-3 max-w-md">
+            <div className="text-5xl">📋</div>
+            <p className="text-lg text-text-primary font-medium">
+              No Prescription Analyzed Yet
+            </p>
+            <p className="text-sm text-text-secondary">
+              Go to the <strong>Prescription Analyzer</strong> page first to
+              upload and analyze a prescription. Once analyzed, you can come back
+              here to chat about the medicines.
+            </p>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {/* Prescription Context Banner */}
+          {prescriptionResult && prescriptionResult.medicines.length > 0 && (
+            <div className="mb-4 bg-primary-600/10 border border-primary-600/30 rounded-xl px-4 py-3">
+              <p className="text-sm text-primary-400 font-medium">
+                🔗 Chatting about {prescriptionResult.medicines.length} medicine
+                {prescriptionResult.medicines.length > 1 ? "s" : ""}:{" "}
+                <span className="text-primary-300">
+                  {prescriptionResult.medicines.map((m) => m.name).join(", ")}
+                </span>
+              </p>
             </div>
           )}
-        </div>
 
-        {/* Input Area */}
-        <div className="border-t border-border p-4 bg-bg-secondary">
-          {/* Context Slider */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-text-secondary">
-                Context Chunks: {contextLimit}
-              </label>
-              {chatHistory.length > 0 && (
-                <Button variant="ghost" size="sm" onPress={clearHistory}>
-                  Clear History
-                </Button>
+          {/* Chat Container */}
+          <div className="flex-1 min-h-0 flex flex-col bg-bg-secondary border border-border rounded-xl overflow-hidden">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {chatHistory.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <p className="text-lg mb-2 text-text-primary">
+                      Ask about your medicines
+                    </p>
+                    <p className="text-sm text-text-secondary">
+                      Try: "What can I use instead of {prescriptionResult?.medicines[0]?.name ?? 'this medicine'}?"
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                chatHistory.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
+                      }`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-3 ${message.role === "user"
+                        ? "bg-primary-600 text-white rounded-br-none"
+                        : "bg-bg-tertiary text-text-primary border border-border rounded-bl-none"
+                        }`}
+                    >
+                      {message.role === "user" ? (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <div className="prose-chat">
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
+                      )}
+                      <span className="text-xs opacity-70 mt-2 block">
+                        {formatDate(message.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                ))
               )}
+              {answerMutation.isPending && (
+                <div className="flex justify-start">
+                  <div className="bg-bg-tertiary border border-border rounded-2xl rounded-bl-none px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce" />
+                      <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce delay-100" />
+                      <div className="w-2 h-2 bg-primary-600 rounded-full animate-bounce delay-200" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              value={contextLimit}
-              onChange={(e) => setContextLimit(parseInt(e.target.value))}
-              className="w-full"
-            />
-          </div>
 
-          {/* Input Form */}
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask a question..."
-              disabled={answerMutation.isPending}
-              className="flex-1 px-4 py-3 bg-bg-tertiary border border-border rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:border-primary-600 disabled:opacity-50 transition-all"
-            />
-            <Button
-              type="submit"
-              isLoading={answerMutation.isPending}
-              isDisabled={!question.trim()}
-            >
-              <PaperAirplaneIcon className="w-5 h-5" />
-              Send
-            </Button>
-          </form>
-        </div>
-      </Card>
+            {/* Input Area */}
+            <div className="border-t border-border p-4 bg-bg-secondary">
+              {chatHistory.length > 0 && (
+                <div className="mb-3 flex justify-end">
+                  <Button variant="ghost" size="sm" onPress={clearHistory}>
+                    Clear History
+                  </Button>
+                </div>
+              )}
+
+              {/* Input Form */}
+              <form onSubmit={handleSubmit} className="flex gap-2">
+                <input
+                  type="text"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Ask about your medicines..."
+                  disabled={answerMutation.isPending}
+                  className="flex-1 px-4 py-3 bg-bg-tertiary border border-border rounded-md text-text-primary placeholder-text-muted focus:outline-none focus:border-primary-600 disabled:opacity-50 transition-all"
+                />
+                <Button
+                  type="submit"
+                  isLoading={answerMutation.isPending}
+                  isDisabled={!question.trim()}
+                >
+                  <PaperAirplaneIcon className="w-5 h-5" />
+                  Send
+                </Button>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

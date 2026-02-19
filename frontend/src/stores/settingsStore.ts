@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ChatMessage } from '../api/types';
+import type { ChatMessage, MedicineInfo } from '../api/types';
+
+export interface PrescriptionResult {
+    ocrText: string;
+    medicines: MedicineInfo[];
+    signal: string;
+    previewDataUrl: string | null;
+    projectId: number | null;
+}
 
 interface SettingsState {
     // Settings
@@ -11,12 +19,16 @@ interface SettingsState {
     // Chat History
     chatHistory: ChatMessage[];
 
+    // Prescription Result (persisted across page switches)
+    prescriptionResult: PrescriptionResult | null;
+
     // Actions
     setApiUrl: (url: string) => void;
     setProjectId: (id: number) => void;
     toggleTheme: () => void;
     addMessage: (message: ChatMessage) => void;
     clearHistory: () => void;
+    setPrescriptionResult: (result: PrescriptionResult | null) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -27,6 +39,7 @@ export const useSettingsStore = create<SettingsState>()(
             projectId: 1,
             theme: 'dark',
             chatHistory: [],
+            prescriptionResult: null,
 
             // Actions
             setApiUrl: (url) => set({ apiUrl: url }),
@@ -42,6 +55,8 @@ export const useSettingsStore = create<SettingsState>()(
             })),
 
             clearHistory: () => set({ chatHistory: [] }),
+
+            setPrescriptionResult: (result) => set({ prescriptionResult: result }),
         }),
         {
             name: 'fehres-settings',
