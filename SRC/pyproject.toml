@@ -31,5 +31,7 @@ dependencies = [
     "llama-parse",
     "duckduckgo-search",
     "httpx",
+    "easyocr",
+
 ]
 

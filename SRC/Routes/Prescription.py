@@ -1,11 +1,20 @@
 from fastapi import APIRouter, UploadFile, status, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import Optional
 import os
 import tempfile
 import logging
 from Helpers.Config import get_settings, settings
 from Controllers.PrescriptionController import PrescriptionController
+from Controllers.NLPController import NLPController
 from Models.enums.ResponsEnums import ResponseSignal
+from Models.Project_Model import projectModel
+from Models.Chunk_Model import ChunkModel
+from Models.Asset_Model import AssetModel
+from Models.DB_Schemes import dataChunk, Asset, Project
+from Models.enums.AssetTypeEnum import assettypeEnum
+from Stores.LLM.LLMEnums import DocumentTypeEnum
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -24,11 +33,19 @@ ALLOWED_IMAGE_TYPES = [
 ]
 
 
+class PrescriptionChatRequest(BaseModel):
+    text: str
+    limit: Optional[int] = 5
+    project_id: int
+
+
 @prescription_router.post("/analyze")
 async def analyze_prescription(request: Request, file: UploadFile):
     """
     Upload a prescription image, perform OCR, extract medicine names,
-    and search for active ingredients + images for each medicine.
+    and push the results into a NEW project in the RAG system.
+
+    Returns the project_id so the frontend can use it for chat.
     """
     # Validate file type
     if file.content_type not in ALLOWED_IMAGE_TYPES:
@@ -50,7 +67,7 @@ async def analyze_prescription(request: Request, file: UploadFile):
         tmp_file.flush()
         tmp_file.close()
 
-        # Run analysis pipeline
+        # Run OCR pipeline
         controller = PrescriptionController()
         result = await controller.analyze_prescription(
             file_path=tmp_file.name,
@@ -63,14 +80,97 @@ async def analyze_prescription(request: Request, file: UploadFile):
 
         if not medicines:
             signal = ResponseSignal.PRESCRIPTION_NO_MEDICINES_FOUND.value
-        else:
-            signal = ResponseSignal.PRESCRIPTION_ANALYZED.value
+            return JSONResponse(
+                content={
+                    "signal": signal,
+                    "ocr_text": ocr_text,
+                    "medicines": [],
+                    "project_id": None,
+                }
+            )
+
+        # ── Create a new project for this analysis ──────────────
+        project_model = await projectModel.create_instance(
+            db_client=request.app.db_client
+        )
+        new_project = await project_model.create_project(Project())
+        pid = new_project.project_id
+        logger.info("Created prescription project_id=%d", pid)
+
+        # ── Create a virtual asset for the prescription ─────────
+        asset_model = await AssetModel.create_instance(
+            db_client=request.app.db_client
+        )
+        asset_record = await asset_model.create_asset(
+            Asset(
+                asset_project_id=pid,
+                asset_type=assettypeEnum.PRESCRIPTION.value,
+                asset_name=f"prescription_{pid}",
+                asset_size=len(content),
+            )
+        )
+        asset_id = asset_record.asset_id
+
+        # ── Build text chunks from each medicine ────────────────
+        chunk_records = []
+        for i, med in enumerate(medicines):
+            chunk_text = (
+                f"Medicine: {med['name']}\n"
+                f"Active Ingredient: {med.get('active_ingredient', 'Unknown')}\n"
+            )
+            chunk_records.append(
+                dataChunk(
+                    chunk_text=chunk_text,
+                    chunk_metadata={
+                        "source": "prescription_ocr",
+                        "medicine_name": med["name"],
+                        "active_ingredient": med.get("active_ingredient", "Unknown"),
+                    },
+                    chunk_order=i + 1,
+                    chunk_project_id=pid,
+                    chunk_asset_id=asset_id,
+                )
+            )
+
+        # Insert chunks into database
+        chunk_model = await ChunkModel.create_instance(
+            db_client=request.app.db_client
+        )
+        await chunk_model.insert_many_chunks(chunks=chunk_records)
+
+        # ── Embed & index into VectorDB ─────────────────────────
+        nlp_controller = NLPController(
+            genration_client=request.app.genration_client,
+            embedding_client=request.app.embedding_client,
+            vectordb_client=request.app.vectordb_client,
+            template_parser=request.app.template_parser,
+        )
+
+        # Reload chunks from DB (they now have IDs)
+        db_chunks = await chunk_model.get_project_chunks(
+            project_id=pid, page_no=1, page_size=500
+        )
+
+        if db_chunks:
+            chunks_ids = [c.chunk_id for c in db_chunks]
+            is_inserted, error_msg = await nlp_controller.index_into_vector_db(
+                project=new_project, chunks=db_chunks, chunks_ids=chunks_ids,
+                do_reset=True,
+            )
+            if not is_inserted:
+                logger.error("Failed to index prescription chunks: %s", error_msg)
+            else:
+                logger.info(
+                    "Indexed %d prescription chunks into project %d",
+                    len(db_chunks), pid,
+                )
 
         return JSONResponse(
             content={
-                "signal": signal,
+                "signal": ResponseSignal.PRESCRIPTION_ANALYZED.value,
                 "ocr_text": ocr_text,
                 "medicines": medicines,
+                "project_id": pid,
             }
         )
 
@@ -90,3 +190,58 @@ async def analyze_prescription(request: Request, file: UploadFile):
             os.unlink(tmp_file.name)
         except OSError:
             pass
+
+
+@prescription_router.post("/chat")
+async def prescription_chat(request: Request, chat_request: PrescriptionChatRequest):
+    """
+    Chat about a specific prescription analysis.
+    Uses the RAG system scoped to the project_id created from analyze.
+    """
+    pid = chat_request.project_id
+
+    # Validate the project exists
+    project_model = await projectModel.create_instance(
+        db_client=request.app.db_client
+    )
+
+    async with request.app.db_client() as session:
+        from sqlalchemy.future import select as sa_select
+        result = await session.execute(
+            sa_select(Project).where(Project.project_id == pid)
+        )
+        project = result.scalar_one_or_none()
+
+    if not project:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"Signal": ResponseSignal.PROJECT_NOT_FOUND.value},
+        )
+
+    nlp_controller = NLPController(
+        genration_client=request.app.genration_client,
+        embedding_client=request.app.embedding_client,
+        vectordb_client=request.app.vectordb_client,
+        template_parser=request.app.template_parser,
+    )
+
+    answer, full_prompt, chat_history = await nlp_controller.answer_prescription_question(
+        project=project,
+        query=chat_request.text,
+        limit=chat_request.limit,
+    )
+
+    if not answer:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"Signal": ResponseSignal.ANSWER_INDEX_ERROR.value},
+        )
+
+    return JSONResponse(
+        content={
+            "Signal": ResponseSignal.ANSWER_INDEX_DONE.value,
+            "Answer": answer,
+            "FullPrompt": full_prompt,
+            "ChatHistory": chat_history,
+        }
+    )

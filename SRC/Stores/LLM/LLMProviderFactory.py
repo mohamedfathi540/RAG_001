@@ -53,8 +53,8 @@ class LLMProviderFactory :
         """
         ocr_backend = ocr_backend.upper()
 
-        if ocr_backend == "LLAMAPARSE":
-            # LlamaParse is handled separately in the controller
+        if ocr_backend in ["LLAMAPARSE", "EASYOCR"]:
+            # These backends are handled directly in the controller
             return None
 
         # Create the provider via the standard factory
@@ -63,14 +63,13 @@ class LLMProviderFactory :
         if provider is None:
             return None
 
-        # Set the generation model for vision tasks
-        if ocr_backend == LLMEnums.GEMINI.value:
+        # Set the generation model for vision tasks — use OCR_MODEL_ID from config
+        ocr_model_id = getattr(self.config, "OCR_MODEL_ID", None)
+        if ocr_model_id:
+            provider.set_genration_model(ocr_model_id)
+        elif ocr_backend == LLMEnums.GEMINI.value:
             provider.set_genration_model("gemini-2.0-flash")
         elif ocr_backend == LLMEnums.OPENAI.value:
-            model_id = getattr(self.config, "GENRATION_MODEL_ID", None)
-            if model_id:
-                provider.set_genration_model(model_id)
-            else:
-                provider.set_genration_model("gpt-4o")
+            provider.set_genration_model("gpt-4o")
 
         return provider

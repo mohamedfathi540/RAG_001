@@ -1,5 +1,5 @@
 from ..LLMInterface import LLMInterface
-from ..LLMEnums import LLMEnums
+from ..LLMEnums import LLMEnums, HuggingFaceEnum
 from huggingface_hub import InferenceClient
 import logging
 from typing import List, Union
@@ -22,6 +22,7 @@ class HuggingFaceProvider(LLMInterface):
 
         self.client = InferenceClient(token=self.api_key)
 
+        self.enums = HuggingFaceEnum
         self.logger = logging.getLogger(__name__)
 
     def set_genration_model(self, model_id: str):

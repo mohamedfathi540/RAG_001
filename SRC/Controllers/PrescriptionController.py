@@ -6,9 +6,11 @@ Supports multiple OCR backends configured via OCR_BACKEND in .env:
   - LLAMAPARSE: Cloud-based OCR (requires LLAMA_CLOUD_API_KEY)
   - GEMINI: Google Gemini Vision AI (requires GEMINI_API_KEY)
   - OPENAI: OpenAI Vision (requires OPENAI_API_KEY)
+  - EASYOCR: Local OCR via EasyOCR (no API key required)
 
-The OCR provider is created by LLMProviderFactory.create_ocr() and
-follows the same LLMInterface pattern as other providers.
+Local backends (EASYOCR) extract raw text, then
+pass it to the LLM for medicine name extraction.
+Vision backends (GEMINI, OPENAI) read the image directly.
 """
 import os
 import re
@@ -101,6 +103,11 @@ class PrescriptionController(basecontroller):
             return await self._pipeline_llamaparse(
                 file_path, genration_client
             )
+        elif ocr_backend == "EASYOCR":
+            # Local EasyOCR text OCR → LLM extraction
+            return await self._pipeline_easyocr(
+                file_path, genration_client
+            )
         else:
             # Vision-based OCR via the provider's ocr_image method
             if ocr_client is None:
@@ -118,6 +125,26 @@ class PrescriptionController(basecontroller):
     ) -> dict:
         """LlamaParse text OCR → LLM medicine extraction pipeline."""
         ocr_text = await self._ocr_llamaparse(file_path)
+        if not ocr_text.strip():
+            return {"ocr_text": "", "medicines": []}
+
+        medicines_raw = await self._llm_extract_medicines(
+            ocr_text, genration_client
+        )
+        if not medicines_raw:
+            return {"ocr_text": ocr_text, "medicines": []}
+
+        medicines = await self._enrich_medicines(medicines_raw)
+        return {"ocr_text": ocr_text, "medicines": medicines}
+
+    # =================================================================
+    # PIPELINE C: EasyOCR (Local) → LLM extraction
+    # =================================================================
+    async def _pipeline_easyocr(
+        self, file_path: str, genration_client
+    ) -> dict:
+        """EasyOCR text extraction → LLM medicine extraction pipeline."""
+        ocr_text = await self._ocr_easyocr(file_path)
         if not ocr_text.strip():
             return {"ocr_text": "", "medicines": []}
 
@@ -248,6 +275,37 @@ class PrescriptionController(basecontroller):
         logger.info("LlamaParse OCR extracted %d characters", len(full_text))
         logger.info("OCR text:\n%s", full_text)
         return full_text
+
+    # =================================================================
+    # EasyOCR (Local)
+    # =================================================================
+    async def _ocr_easyocr(self, file_path: str) -> str:
+        """Use local EasyOCR to extract text from an image."""
+        try:
+            import easyocr
+            from fastapi.concurrency import run_in_threadpool
+        except ImportError:
+            raise ImportError(
+                "easyocr is not installed. Please install it with: "
+                "pip install easyocr"
+            )
+
+        logger.info("Starting EasyOCR processing...")
+        
+        def run_easyocr():
+            # Initialize reader for English. Arabic model requires download.
+            # GPU=True if available, else False.
+            reader = easyocr.Reader(['en'], gpu=True)
+            result = reader.readtext(file_path, detail=0, paragraph=True)
+            return "\n".join(result)
+
+        full_text = await run_in_threadpool(run_easyocr)
+        
+        logger.info("EasyOCR extracted %d characters", len(full_text))
+        logger.info("OCR text:\n%s", full_text)
+        return full_text
+
+
 
     # =================================================================
     # LLM-based medicine extraction (used by LlamaParse pipeline)
